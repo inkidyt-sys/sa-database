@@ -1,0 +1,208 @@
+/* --- 全局設定與新版變數 --- */
+:root {
+    --bg-color: #14181d;
+    --text-color: #c8c8c8;
+    --primary-color: #5A99E3;
+    --border-color: #333;
+    --card-bg: #1f232a;
+    --font-pixel-title: 'Press Start 2P', sans-serif;
+    --font-pixel-body: 'VT323', monospace;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    font-family: var(--font-pixel-body);
+    font-size: 18px;
+    font-smooth: never;
+    -webkit-font-smoothing: none;
+}
+
+/* --- 主佈局 --- */
+.container {
+    display: flex;
+    height: 100vh;
+}
+
+/* --- 左側導覽列 --- */
+.sidebar {
+    flex: 0 0 280px;
+    border-right: 2px solid var(--border-color);
+    padding: 20px;
+    overflow-y: auto;
+    background-color: #1a1e25;
+}
+
+.logo {
+    font-family: var(--font-pixel-title);
+    color: var(--primary-color);
+    font-size: 22px;
+    text-shadow: 2px 2px 0px #000;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--border-color);
+    text-align: center;
+}
+
+.sidebar-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+/* 主選項樣式 */
+.nav-item .nav-title {
+    cursor: pointer;
+    padding: 10px 15px;
+    margin-bottom: 2px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.nav-item .nav-title:hover {
+    color: var(--primary-color);
+}
+
+.nav-item .nav-title::after {
+    content: '+';
+    position: absolute;
+    right: 15px;
+    font-size: 20px;
+    transition: transform 0.2s ease;
+}
+
+.nav-item.open > .nav-title {
+    color: var(--primary-color);
+}
+
+.nav-item.open > .nav-title::after {
+    transform: rotate(45deg);
+}
+
+/* 二級選項列表 */
+.submenu {
+    list-style: none;
+    padding-left: 20px;
+    margin: 0 0 10px 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.15s ease-in-out;
+}
+
+.nav-item.open > .submenu {
+    max-height: 1000px;
+}
+
+/* 二級選項中的連結 */
+.submenu li a {
+    display: block;
+    text-decoration: none;
+    color: var(--text-color);
+    padding: 8px 15px;
+    border-left: 2px solid transparent;
+}
+
+.submenu li a:hover {
+    color: var(--primary-color);
+}
+
+/* 二級選項中，有三級選單的標題 */
+.submenu .submenu-title {
+    cursor: pointer;
+    padding: 8px 15px;
+    position: relative;
+}
+
+.submenu .submenu-title:hover {
+    color: var(--primary-color);
+}
+
+.submenu .submenu-title::after {
+    content: '+';
+    position: absolute;
+    right: 15px;
+    font-size: 18px;
+    transition: transform 0.2s ease;
+}
+
+.submenu li.open > .submenu-title {
+    color: var(--primary-color);
+}
+
+.submenu li.open > .submenu-title::after {
+    transform: rotate(45deg);
+}
+
+/* 三級選項列表 */
+.sub-submenu {
+    list-style: none;
+    padding-left: 15px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.15s ease-in-out;
+}
+
+.submenu li.open > .sub-submenu {
+    max-height: 500px;
+}
+
+/* 所有被選中連結的統一高亮樣式 */
+.sidebar li.active > a,
+.sidebar li.active > div {
+    color: var(--primary-color);
+    background-color: rgba(90, 153, 227, 0.1);
+    border-left-color: var(--primary-color) !important; /* Use important to override other border styles */
+}
+
+/* --- 右側內容區 --- */
+.main-content {
+    flex: 1;
+    padding: 30px 40px;
+    overflow-y: auto;
+}
+
+.main-content h1 {
+    font-family: var(--font-pixel-title);
+    color: var(--primary-color);
+    font-size: 26px;
+    margin-top: 0;
+    text-shadow: 2px 2px 0px #000;
+}
+
+/* --- 資料表格樣式 --- */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.data-table th,
+.data-table td {
+    border: 2px solid var(--border-color);
+    padding: 12px 15px;
+    text-align: left;
+}
+
+.data-table thead th {
+    background-color: var(--card-bg);
+    color: var(--primary-color);
+    font-family: var(--font-pixel-title);
+    font-size: 14px;
+}
+
+.data-table tbody tr:hover {
+    background-color: rgba(90, 153, 227, 0.1);
+}
+
+.data-table .col-atk {
+    color: #ff8a8a;
+}
+
+.data-table .col-type {
+    color: #8aff99;
+}

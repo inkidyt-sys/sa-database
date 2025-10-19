@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>石器時代資料庫</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="logo">■ 石器時代資料庫</div>
+            <ul class="sidebar-nav">
+                <li class="nav-item">
+                    <div class="nav-title">簡介 Intro</div>
+                    <ul class="submenu">
+                        <li><a href="#intro/about" data-page="intro/about">關於石器時代</a></li>
+                        <li><a href="#intro/history" data-page="intro/history">版本歷史</a></li>
+                        <li><a href="#intro/gameplay" data-page="intro/gameplay">核心玩法</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <div class="nav-title">職業 Classes</div>
+                    <ul class="submenu">
+                        <li><a href="#classes/warrior" data-page="classes/warrior">白狼勇士</a></li>
+                        <li><a href="#classes/mage" data-page="classes/mage">暗靈法師</a></li>
+                        <li><a href="#classes/hunter" data-page="classes/hunter">追獵者</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <div class="nav-title">寵物 Pets</div>
+                    <ul class="submenu">
+                        <li><a href="#pets/index" data-page="pets/index">圖鑑</a></li>
+                        <li><a href="#pets/skills" data-page="pets/skills">技能</a></li>
+                        <li><a href="#pets/growth" data-page="pets/growth">成長檔</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <div class="nav-title">道具 Items</div>
+                    <ul class="submenu">
+                        <li><a href="#items/weapons" data-page="items/weapons">武器</a></li>
+                        <li><a href="#items/offhand" data-page="items/offhand">副手</a></li>
+                        <li><a href="#items/accessory" data-page="items/accessory">飾品</a></li>
+						<li><a href="#items/helmet" data-page="items/helmet">頭盔</a></li>
+						<li><a href="#items/armor" data-page="items/armor">鎧甲</a></li>
+						<li><a href="#items/gloves" data-page="items/gloves">手套</a></li>
+						<li><a href="#items/belt" data-page="items/belt">腰帶</a></li>
+						<li><a href="#items/boots" data-page="items/boots">鞋子</a></li>
+						<li><a href="#items/set" data-page="items/set">套裝</a></li>
+						<li><a href="#items/crafting" data-page="items/crafting">合成</a></li>
+						<li><a href="#items/cooking" data-page="items/cooking">料理</a></li>
+                    </ul>
+                </li>
+                 <li class="nav-item">
+                    <div class="nav-title">地圖 Maps</div>
+                    <ul class="submenu">
+                        <li class="has-children">
+                            <div class="submenu-title">北島/薩伊那斯</div>
+                            <ul class="sub-submenu">
+                                <li><a href="#maps/marinas" data-page="maps/marinas">瑪麗娜絲漁村</a></li>
+                                <li><a href="#maps/samsir" data-page="maps/samsir">薩姆吉爾村</a></li>
+                                <li><a href="#maps/karutana" data-page="maps/karutana">卡魯它那村</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-children">
+                            <div class="submenu-title">南島/加魯卡</div>
+                             <ul class="sub-submenu">
+                                <li><a href="#maps/jaja" data-page="maps/jaja">加加村</a></li>
+                                <li><a href="#maps/katan" data-page="maps/katan">卡坦村</a></li>
+                                <li><a href="#maps/hortel" data-page="maps/hortel">霍特爾村</a></li>
+                            </ul>
+                        </li>
+						<li><a href="#maps/shamu" data-page="maps/shamu">沙姆島</a></li>
+                        <li><a href="#maps/jilu" data-page="maps/jilu">吉魯島</a></li>
+						<li><a href="#maps/eden" data-page="maps/eden">伊甸</a></li>
+						<li><a href="#maps/ice" data-page="maps/ice">冰城/無息之境</a></li>
+						<li><a href="#maps/dark" data-page="maps/dark">魔域/焦熱之地</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <div class="nav-title">任務 Quests</div>
+                    <ul class="submenu">
+                        <li class="has-children">
+                            <div class="submenu-title">北島</div>
+                             <ul class="sub-submenu">
+                                <li><a href="#quests/adult" data-page="quests/adult">成人禮</a></li>
+                                <li><a href="#quests/glass" data-page="quests/glass">琉璃洞窟</a></li>
+                                <li><a href="#quests/xuanhuang" data-page="quests/xuanhuang">玄黃洞窟</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-children">
+                            <div class="submenu-title">南島</div>
+                             <ul class="sub-submenu">
+                                <li><a href="#quests/fourstone" data-page="quests/fourstone">四聖石</a></li>
+                                <li><a href="#quests/katanwish" data-page="quests/katanwish">卡坦的願望</a></li>
+                                <li><a href="#quests/goldwing" data-page="quests/goldwing">金飛航空</a></li>
+                            </ul>
+                        </li>
+						<li><a href="#quests/shamu" data-page="quests/shamu">沙姆島</a></li>
+                        <li><a href="#quests/jilu" data-page="quests/jilu">吉魯島</a></li>
+						<li><a href="#quests/hero" data-page="quests/hero">英雄島</a></li>
+						<li><a href="#quests/eden" data-page="quests/eden">伊甸</a></li>
+						<li><a href="#quests/ice" data-page="quests/ice">冰城</a></li>
+						<li><a href="#quests/dark" data-page="quests/dark">魔域</a></li>
+						<li><a href="#quests/custom" data-page="quests/custom">凝夢自創</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <div class="nav-title">技能 Skills</div>
+                    <ul class="submenu">
+                        <li><a href="#skills/attack" data-page="skills/attack">攻擊系技能</a></li>
+                        <li><a href="#skills/magic" data-page="skills/magic">精靈魔法</a></li>
+                        <li><a href="#skills/support" data-page="skills/support">輔助技能</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <div class="nav-title">怪物 Monsters</div>
+                    <ul class="submenu">
+                        <li><a href="#monsters/drops" data-page="monsters/drops">屬性與掉落</a></li>
+                        <li><a href="#monsters/locations" data-page="monsters/locations">地區分布</a></li>
+                        <li><a href="#monsters/boss" data-page="monsters/boss">BOSS資訊</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <div class="nav-title">對戰 PvP</div>
+                    <ul class="submenu">
+                        <li><a href="#pvp/elements" data-page="pvp/elements">屬性相剋</a></li>
+                        <li><a href="#pvp/tactics" data-page="pvp/tactics">戰術技巧</a></li>
+                        <li><a href="#pvp/family" data-page="pvp/family">家族戰</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <div class="nav-title">小技巧 Tips</div>
+                    <ul class="submenu">
+                        <li><a href="#tips/starting" data-page="tips/starting">入門與配點</a></li>
+                        <li><a href="#tips/money" data-page="tips/money">賺錢攻略</a></li>
+                        <li><a href="#tips/commands" data-page="tips/commands">實用指令</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="main-content">
+            <h1>Loading...</h1>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const mainContent = document.querySelector('.main-content');
+            const navItems = document.querySelectorAll('.sidebar .nav-item');
+            const subMenuParents = document.querySelectorAll('.sidebar .has-children');
+
+            // --- 函式：載入頁面內容 ---
+            async function loadPage(pagePath) {
+                const filePath = `./pages/${pagePath}.html`;
+                try {
+                    const response = await fetch(filePath);
+                    if (response.ok) {
+                        mainContent.innerHTML = await response.text();
+                    } else {
+                        mainContent.innerHTML = `<h1>錯誤 404</h1><p>找不到頁面: <code>${filePath}</code></p>`;
+                    }
+                } catch (error) {
+                    console.error('載入頁面時發生錯誤:', error);
+                    mainContent.innerHTML = `<h1>載入錯誤</h1><p>無法載入頁面內容。</p>`;
+                }
+            }
+
+            // --- 函式：根據 pageKey 設定高亮和展開狀態 ---
+            function setActiveState(pageKey) {
+                if (!pageKey) return;
+                
+                document.querySelectorAll('.sidebar li').forEach(i => i.classList.remove('active'));
+                
+                const activeLink = document.querySelector(`a[data-page="${pageKey}"]`);
+                if (activeLink) {
+                    activeLink.parentElement.classList.add('active');
+
+                    // 向上查找並展開所有父層選單
+                    let parent = activeLink.closest('.nav-item');
+                    if (parent) parent.classList.add('open');
+
+                    let subParent = activeLink.closest('.has-children');
+                    if (subParent) subParent.classList.add('open');
+                }
+            }
+
+            // --- 函式：處理 URL 雜湊變更的核心邏輯 ---
+            function handleHashChange() {
+                // 從 URL 取得 hash，並移除 '#'
+                const pageKey = window.location.hash.substring(1);
+                
+                if (pageKey) {
+                    loadPage(pageKey);
+                    setActiveState(pageKey);
+                } else {
+                    // 如果 URL 沒有 hash，載入預設頁面
+                    const defaultPage = 'intro/about';
+                    loadPage(defaultPage);
+                    setActiveState(defaultPage);
+                }
+            }
+            
+            // --- 事件監聽：處理側邊欄卡片的開合 ---
+            navItems.forEach(item => {
+                const title = item.querySelector('.nav-title');
+                if (title) {
+                    title.addEventListener('click', function() {
+                        // 手風琴效果，只保留一個開啟
+                        const wasOpen = item.classList.contains('open');
+                        navItems.forEach(i => i.classList.remove('open'));
+                        if (!wasOpen) {
+                            item.classList.add('open');
+                        }
+                    });
+                }
+            });
+
+            subMenuParents.forEach(item => {
+                const title = item.querySelector('.submenu-title');
+                if(title){
+                    title.addEventListener('click', function(e){
+                        e.stopPropagation(); // 阻止事件冒泡到父層的開合
+                        item.classList.toggle('open');
+                    });
+                }
+            });
+
+            // --- 初始化 ---
+            // 1. 監聽 URL hash 的變化 (例如點擊瀏覽器上一頁/下一頁)
+            window.addEventListener('hashchange', handleHashChange);
+
+            // 2. 頁面首次載入時，立即觸發一次 hash 處理函式
+            handleHashChange();
+        });
+    </script>
+</body>
+</html>
