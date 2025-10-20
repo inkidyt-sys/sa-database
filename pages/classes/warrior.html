@@ -1,13 +1,10 @@
 <style>
-  /* 直接對表格ID進行設定，
-    用 width: auto 來覆蓋 style.css 中的 width: 100%，
-    讓表格寬度由內容決定，而不是強制延展。
-  */
-  #ability-cap-table {
+  /* 讓能力上限與職業套裝表格寬度由內容決定 */
+  #ability-cap-table, .set-table {
     width: auto;
   }
 
-  /* 限制儲存格的最大寬度並置中 */
+  /* 限制能力上限表格的儲存格最大寬度並置中 */
   #ability-cap-table th, 
   #ability-cap-table td {
     max-width: 10ch; 
@@ -110,7 +107,7 @@
 <h3>職業套裝</h3>
 
 <h4>巨熊系列</h4>
-<table class="data-table">
+<table class="data-table set-table">
     <thead>
         <tr>
             <th>裝備</th>
@@ -151,7 +148,7 @@
 
 <h4>陽燄系列</h4>
 <p>攜帶以下材料至白狼公會製作，工本費皆為 5000 石幣。</p>
-<table class="data-table">
+<table class="data-table set-table">
     <thead>
         <tr>
             <th>裝備</th>

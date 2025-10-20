@@ -1,0 +1,35 @@
+<style>
+    .map-content-wrapper {
+        background-color: transparent;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        /* 修改：移除 align-items: center; 或改為 flex-start 以實現靠左對齊 */
+        align-items: flex-start; 
+    }
+
+    .map-image-full img {
+        max-width: 100%; 
+        height: auto;
+        display: block; 
+        object-fit: contain;
+    }
+
+    .image-caption {
+        margin-top: 15px;
+        /* 修改：加大、標紅、靠左 */
+        font-size: 1.1em;   
+        color: #E63946;     
+        font-weight: bold;  
+        text-align: left;   
+    }
+</style>
+
+<h1>吉魯島</h1>
+
+<div class="map-content-wrapper">
+    <div class="map-image-full">
+        <img src="./pages/maps/data/300.png" alt="吉魯島地圖">
+    </div>
+    <p class="image-caption">圖片來源：網路轉載，非原創</p>
+</div>
