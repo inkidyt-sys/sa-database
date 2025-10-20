@@ -206,3 +206,57 @@ body {
 .data-table .col-type {
     color: #8aff99;
 }
+/* --- 座標高亮樣式 --- */
+.coord {
+    color: #ffd700; /* 亮黃色，類似遊戲中的稀有物品顏色 */
+    font-weight: bold;
+}
+
+/* --- Hamburger Menu (hidden on desktop) --- */
+.hamburger-menu {
+    display: none; /* Default to hidden on larger screens */
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 1001; /* Must be higher than the sidebar's z-index */
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+    color: var(--primary-color);
+    font-size: 24px;
+    line-height: 40px;
+    text-align: center;
+}
+
+/* --- Mobile Responsiveness --- */
+@media (max-width: 768px) {
+
+    /* Show hamburger on mobile */
+    .hamburger-menu {
+        display: block;
+    }
+
+    /* Change sidebar to an overlay panel */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        z-index: 1000;
+        transform: translateX(-100%); /* Hide off-screen by default */
+        transition: transform 0.3s ease-in-out;
+        box-shadow: 5px 0px 15px rgba(0, 0, 0, 0.5); /* Add a subtle shadow */
+    }
+
+    /* .open class will slide the sidebar in */
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    /* Add padding to the top of the main content to avoid overlapping with the hamburger button */
+    .main-content {
+        padding-top: 60px;
+    }
+}

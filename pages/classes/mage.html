@@ -1,0 +1,184 @@
+<style>
+  /* 直接對表格ID進行設定，
+    用 width: auto 來覆蓋 style.css 中的 width: 100%，
+    讓表格寬度由內容決定，而不是強制延展。
+  */
+  #ability-cap-table {
+    width: auto;
+  }
+
+  /* 限制儲存格的最大寬度並置中 */
+  #ability-cap-table th, 
+  #ability-cap-table td {
+    max-width: 10ch; 
+    text-align: center;
+  }
+</style>
+
+<h1>暗靈法師 Mage</h1>
+
+<h3>就職任務</h3>
+<ul>
+    <li><strong>任務地點：</strong>沙姆島外附近的闇靈法師公會 (座標 <span class="coord">(110,43)</span>)</li>
+    <li><strong>限制等級：</strong>80級以上</li>
+    <li><strong>限制條件：</strong>需解完成人禮</li>
+</ul>
+
+<h3>任務流程</h3>
+<ol>
+    <li>進入沙姆島 <span class="coord">(110,43)</span> 的暗靈法師就職所。</li>
+    <li>與裡面的薩哈克 <span class="coord">(17,22)</span> 對話開始任務。</li>
+    <li>走到試煉洞窟的盡頭與 NPC 對話，選「是」。</li>
+    <li>走到下一個洞窟的盡頭與 NPC 對話，說出密語「塔希摩比奧」。</li>
+    <li>在該層打怪，收集「藥草1」到「藥草5」共五種。</li>
+    <li>打倒會使用魔法的水蛇（建議由寵物主攻，人物負責補血即可輕鬆通過）。</li>
+    <li>完成以上任務後，回去與薩哈克 <span class="coord">(17,22)</span> 對話，再跟就職導師希爾對話即可就職。</li>
+</ol>
+
+<h3>能力上限</h3>
+<table class="data-table" id="ability-cap-table">
+    <thead>
+        <tr>
+            <th>體力</th>
+            <th>腕力</th>
+            <th>耐力</th>
+            <th>速度</th>
+            <th>氣力</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>無</td>
+            <td>200</td>
+            <td>200</td>
+            <td>無</td>
+            <td>150</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>職業技能</h3>
+
+<h4>通用技能規則</h4>
+<ul>
+    <li>就職後會獲得一點技能點數，總熟練度增加70，就會再獲得一點，一點技能點數可學習一項技能。</li>
+    <li>學習進階技能前，必須將特定的前置技能熟練度練達70以上。</li>
+    <li><strong>闇靈法師特性：</strong>火炕熟練度、冰炕熟練度、雷電熟練度，只要使用對應技能就會增加。</li>
+</ul>
+
+<h4>一級技能 | 法師工會<span class="coord">(21,26)</span></h4>
+<ul>
+    <li><strong>火系：</strong>火箭、火附體</li>
+    <li><strong>冰系：</strong>冰箭、冰附體</li>
+    <li><strong>雷系：</strong>招雷術、雷附體</li>
+    <li><strong>輔助系：</strong>嗜血成性、移形換位、附身術</li>
+</ul>
+
+<h4>二級技能 | 無名洞窟地下2樓<span class="coord">(9,32)</span></h4>
+<ul>
+    <li><strong>火系：</strong>火星球 (← 火箭)</li>
+    <li><strong>冰系：</strong>冰鏡術 (← 冰箭)</li>
+    <li><strong>雷系：</strong>暴風雨 (← 招雷術)</li>
+    <li><strong>輔助系：</strong>
+        <ul>
+            <li>嗜血蠱 (← 嗜血成性、移形換位)</li>
+            <li>火炕熟練度 (← 火附體、移形換位)</li>
+            <li>冰氣熟練度 (← 冰附體、移形換位)</li>
+            <li>雷電熟練度 (← 雷附體、移形換位)</li>
+        </ul>
+    </li>
+</ul>
+
+<h4>三級技能 | 沙姆島<span class="coord">(97,50)</span></h4>
+<ul>
+    <li><strong>火系：</strong>火龍槍 (← 火星球)</li>
+    <li><strong>雷系：</strong>電流術 (← 暴風雨)</li>
+    <li><strong>輔助系：</strong>
+        <ul>
+            <li>針針相對 (← 嗜血蠱)</li>
+            <li>附身術 (← 火附體、冰附體、雷附體)</li>
+        </ul>
+    </li>
+    <li><strong>終極技能：</strong>世界末日 (← 火龍槍、電流術、附身術)</li>
+</ul>
+
+<h3>職業套裝</h3>
+
+<h4>靈蛇系列</h4>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>裝備</th>
+            <th>能力</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>青蛇之杖</td>
+            <td>氣力+20、混亂精靈 Lv5</td>
+        </tr>
+        <tr>
+            <td>蟒蛇之冠</td>
+            <td>防+15、氣力+20、毒耐性+60、淨化混亂 Lv2</td>
+        </tr>
+        <tr>
+            <td>雙頭蛇之鎧</td>
+            <td>防+40、氣力+20、迴避率+6、滋潤精靈 Lv4</td>
+        </tr>
+        <tr>
+            <td>響尾蛇之靴</td>
+            <td>敏+20、氣力+20</td>
+        </tr>
+        <tr>
+            <td>靈蛇扣帶</td>
+            <td>氣力+20、會心一擊+6</td>
+        </tr>
+        <tr>
+            <td><strong>合計</strong></td>
+            <td><strong>防+55、敏+20、氣力+100、迴避率+6、會心一擊+6、毒耐性+60</strong></td>
+        </tr>
+    </tbody>
+</table>
+
+<h4>月神系列</h4>
+<p>攜帶以下材料至法師公會製作，工本費皆為 5000 石幣。</p>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>裝備</th>
+            <th>能力</th>
+            <th>合成材料</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>月神之杖</td>
+            <td>攻+45、氣力+45、混亂精靈 Lv5</td>
+            <td>線10*1、骨10*2</td>
+        </tr>
+        <tr>
+            <td>月神之帽</td>
+            <td>防+19、氣力+45、淨化精靈(混亂) Lv2</td>
+            <td>線10*2、骨10*2</td>
+        </tr>
+        <tr>
+            <td>月神之服</td>
+            <td>防+48、氣力+45、滋潤精靈 Lv5</td>
+            <td>線10*2、骨10*2、皮10*1</td>
+        </tr>
+        <tr>
+            <td>月神之靴</td>
+            <td>防+6、氣力+45、負重+2</td>
+            <td>線10*1、骨10*1</td>
+        </tr>
+        <tr>
+            <td>月神腰帶</td>
+            <td>敏+25、氣力+45、攻擊順序+5%</td>
+            <td>線10*1、骨10*1</td>
+        </tr>
+        <tr>
+            <td><strong>合計</strong></td>
+            <td colspan="2"><strong>攻+45、防+73、敏+25、氣力+225、負重+2、攻擊順序+5%</strong></td>
+        </tr>
+    </tbody>
+</table>

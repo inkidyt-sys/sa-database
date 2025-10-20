@@ -13,6 +13,8 @@
 <body>
 
     <div class="container">
+        <button class="hamburger-menu" aria-label="開啟導覽">☰</button>
+
         <aside class="sidebar">
             <div class="logo">■ 石器時代資料庫</div>
             <ul class="sidebar-nav">
@@ -152,9 +154,12 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // --- 元素選擇 ---
             const mainContent = document.querySelector('.main-content');
             const navItems = document.querySelectorAll('.sidebar .nav-item');
             const subMenuParents = document.querySelectorAll('.sidebar .has-children');
+            const hamburger = document.querySelector('.hamburger-menu'); // 新增
+            const sidebar = document.querySelector('.sidebar'); // 新增
 
             // --- 函式：載入頁面內容 ---
             async function loadPage(pagePath) {
@@ -193,14 +198,12 @@
 
             // --- 函式：處理 URL 雜湊變更的核心邏輯 ---
             function handleHashChange() {
-                // 從 URL 取得 hash，並移除 '#'
                 const pageKey = window.location.hash.substring(1);
                 
                 if (pageKey) {
                     loadPage(pageKey);
                     setActiveState(pageKey);
                 } else {
-                    // 如果 URL 沒有 hash，載入預設頁面
                     const defaultPage = 'intro/about';
                     loadPage(defaultPage);
                     setActiveState(defaultPage);
@@ -212,7 +215,6 @@
                 const title = item.querySelector('.nav-title');
                 if (title) {
                     title.addEventListener('click', function() {
-                        // 手風琴效果，只保留一個開啟
                         const wasOpen = item.classList.contains('open');
                         navItems.forEach(i => i.classList.remove('open'));
                         if (!wasOpen) {
@@ -226,17 +228,34 @@
                 const title = item.querySelector('.submenu-title');
                 if(title){
                     title.addEventListener('click', function(e){
-                        e.stopPropagation(); // 阻止事件冒泡到父層的開合
+                        e.stopPropagation();
                         item.classList.toggle('open');
                     });
                 }
             });
 
-            // --- 初始化 ---
-            // 1. 監聽 URL hash 的變化 (例如點擊瀏覽器上一頁/下一頁)
-            window.addEventListener('hashchange', handleHashChange);
+            // --- 新增：漢堡選單點擊事件 ---
+            if (hamburger && sidebar) {
+                hamburger.addEventListener('click', function() {
+                    sidebar.classList.toggle('open');
+                });
+            }
 
-            // 2. 頁面首次載入時，立即觸發一次 hash 處理函式
+            // --- 新增：點擊連結後自動收合側邊欄 ---
+            if (sidebar) {
+                sidebar.addEventListener('click', function(e) {
+                    // 檢查點擊的是否為一個連結 <a>
+                    if (e.target.tagName === 'A') {
+                        // 如果側邊欄是開啟的，就將它關閉
+                        if (sidebar.classList.contains('open')) {
+                            sidebar.classList.remove('open');
+                        }
+                    }
+                });
+            }
+
+            // --- 初始化 ---
+            window.addEventListener('hashchange', handleHashChange);
             handleHashChange();
         });
     </script>
