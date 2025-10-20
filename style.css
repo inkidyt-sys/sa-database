@@ -260,3 +260,44 @@ body {
         padding-top: 60px;
     }
 }
+
+/* --- 表單與輸入元件樣式 --- */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-family: var(--font-pixel-title);
+    font-size: 14px;
+    color: var(--primary-color);
+}
+
+input[type="text"],
+select {
+    width: 100%;
+    background-color: var(--bg-color);
+    border: 2px solid var(--border-color);
+    color: var(--text-color);
+    font-family: var(--font-pixel-body);
+    font-size: 16px;
+    padding: 8px 10px;
+}
+
+input[type="text"]:focus,
+select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.search-button {
+    background-color: var(--primary-color);
+    color: #000;
+    border: none;
+    padding: 10px 20px;
+    font-family: var(--font-pixel-title);
+    font-size: 14px;
+    cursor: pointer;
+    text-shadow: 1px 1px 0px rgba(255,255,255,0.3);
+}

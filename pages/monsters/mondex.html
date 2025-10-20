@@ -1,0 +1,246 @@
+<style>
+    /* --- 全局反白顏色 --- */
+    ::selection {
+        background-color: var(--primary-color);
+        color: var(--bg-color);
+    }
+
+    /* --- 查詢工具容器 --- */
+    .mondex-container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* --- 查詢類型按鈕 --- */
+    .query-btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 20px;
+    }
+
+    .query-btn {
+        background-color: transparent;
+        border: 2px solid var(--border-color);
+        color: var(--text-color);
+        padding: 8px 16px;
+        cursor: pointer;
+        font-family: var(--font-pixel-body);
+        font-size: 16px;
+        transition: all 0.2s ease;
+    }
+
+    .query-btn:hover,
+    .query-btn.active {
+        background-color: var(--card-bg);
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+    
+    /* --- 篩選器 --- */
+    .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: center;
+    }
+
+    .filter-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+    
+    .filter-item input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--border-color);
+        background-color: var(--bg-color);
+        cursor: pointer;
+        position: relative;
+    }
+
+    .filter-item input[type="checkbox"]:checked {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+
+    /* --- 搜尋面板 --- */
+    .search-panel {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .search-panel .search-input {
+        flex-grow: 1;
+        background-color: var(--bg-color);
+        border: 2px solid var(--border-color);
+        color: var(--text-color);
+        padding: 10px;
+        font-family: var(--font-pixel-body);
+        font-size: 16px;
+        min-width: 250px;
+        max-width: 45ch;
+    }
+
+    .search-panel .search-btn {
+        background-color: #2a9d8f;
+        border: 2px solid #2a9d8f;
+        color: #fff;
+        padding: 10px 20px;
+        font-family: var(--font-pixel-body);
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+    
+    .search-panel .search-btn:hover {
+        background-color: #268a7e;
+    }
+
+    /* --- 結果顯示區 --- */
+    #results-container {
+        border: 2px solid var(--border-color);
+        background-color: rgba(0,0,0,0.2);
+        min-height: 300px;
+        padding: 20px;
+        margin-top: 10px;
+        word-break: break-all;
+    }
+
+    #loading-indicator {
+        text-align: center;
+        padding: 40px;
+    }
+
+    /* --- 動態產生內容的樣式 --- */
+    .map-result {
+        margin-bottom: 25px;
+        border-bottom: 2px dashed var(--border-color);
+        padding-bottom: 15px;
+    }
+    .map-result:last-child {
+        border-bottom: none;
+    }
+    .map-result h3 {
+        color: var(--primary-color);
+        font-family: var(--font-pixel-title);
+        font-size: 20px;
+        margin-bottom: 15px;
+    }
+    .enc-area {
+        margin-left: 15px;
+        border-left: 2px solid var(--border-color);
+        padding-left: 15px;
+        margin-bottom: 15px;
+    }
+    .enc-area h4 {
+        margin: 10px 0;
+        color: #a2d2ff;
+    }
+    .group-block {
+        margin-left: 15px;
+        border-left: 2px solid #444;
+        padding: 0 0 5px 15px;
+        margin-bottom: 10px;
+    }
+    .group-block h5 {
+        margin: 5px 0;
+        font-size: 16px;
+    }
+    .monster-details {
+        margin-left: 20px;
+    }
+    .info-line {
+        margin: 4px 0;
+        line-height: 1.4;
+    }
+    .monster-name {
+        color: #ffb703;
+        font-weight: bold;
+    }
+    .level-highlight {
+        color: #e76f51;
+    }
+    .item-highlight {
+        background-color: rgba(255, 215, 0, 0.2);
+        padding: 1px 4px;
+        border-radius: 3px;
+    }
+    .monster-header {
+        background-color: var(--card-bg);
+        padding: 15px;
+        margin-bottom: 15px;
+        border: 2px solid var(--border-color);
+    }
+    .monster-header h3 {
+        color: var(--primary-color);
+        font-family: var(--font-pixel-title);
+        font-size: 20px;
+        margin: 0 0 10px 0;
+    }
+    .monster-header-details {
+        font-size: 14px;
+        color: #aaa;
+        margin: 5px 0;
+    }
+    .monster-version {
+        border: 2px solid var(--border-color);
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+</style>
+
+<h1>石器怪物查詢工具</h1>
+
+<div class="mondex-container">
+
+    <div class="query-btn-group">
+        <button id="show-map-search" class="query-btn active">地圖查詢</button>
+        <button id="show-monster-search" class="query-btn">怪物名稱查詢</button>
+        <button id="show-id-search" class="query-btn">圖鑑編號查詢</button>
+        <button id="show-item-search" class="query-btn">掉落物查詢</button>
+    </div>
+
+    <div class="filters">
+        <label class="filter-item">
+            <input type="checkbox" id="catchable-filter">
+            <span>只顯示可捕捉</span>
+        </label>
+        <label class="filter-item">
+            <input type="checkbox" id="level-one-filter">
+            <span>只顯示等級1</span>
+        </label>
+    </div>
+
+    <div class="search-panels">
+        <div id="map-search-panel" class="search-panel">
+            <input type="text" id="map-id-input" class="search-input" placeholder="請輸入地圖 ID 或 名稱...">
+            <button id="map-search-btn" class="search-btn">查詢</button>
+        </div>
+        <div id="monster-search-panel" class="search-panel" style="display: none;">
+            <input type="text" id="monster-name-input" class="search-input" placeholder="請輸入怪物名稱 (模糊查詢)...">
+            <button id="monster-search-btn" class="search-btn">查詢</button>
+        </div>
+        <div id="id-search-panel" class="search-panel" style="display: none;">
+            <input type="text" id="enemybase-id-input" class="search-input" placeholder="請輸入怪物圖鑑編號...">
+            <button id="id-search-btn" class="search-btn">查詢</button>
+        </div>
+        <div id="item-search-panel" class="search-panel" style="display: none;">
+            <input type="text" id="item-search-input" class="search-input" placeholder="請輸入掉落物名稱或物品編號...">
+            <button id="item-search-btn" class="search-btn">查詢</button>
+        </div>
+    </div>
+
+    <div id="loading-indicator" style="display: none;"><p>首次載入資料中，請稍候...</p></div>
+    <div id="results-container">
+        <p>請選擇模式並輸入條件進行查詢。</p>
+    </div>
+
+</div>
