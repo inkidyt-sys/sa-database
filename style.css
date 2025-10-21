@@ -301,3 +301,47 @@ select:focus {
     cursor: pointer;
     text-shadow: 1px 1px 0px rgba(255,255,255,0.3);
 }
+/* --- 地圖頁面樣式 (Map Page Styles) --- */
+.map-wrapper {
+    position: relative;
+    max-height: 650px; 
+    max-width: 100%;
+    margin: 20px auto;
+    display: inline-block;
+}
+
+.map-wrapper img {
+    max-width: 100%;
+    max-height: 650px; 
+    height: auto;
+    display: block;
+    position: relative;
+    z-index: 0;
+}
+
+/* 新的地圖註解樣式 */
+.map-annotation {
+    position: absolute;
+    z-index: 2; /* 確保在圖片之上 */
+    
+    font-family: var(--font-pixel-body);
+    font-size: 16px;
+    
+    /* 建議的顏色：星星為黃色 */
+    color: #e23e3e; 
+    text-shadow: 2px 2px 0px #000; /* 保持文字陰影 */
+    white-space: nowrap; /* 確保地名不會換行 */
+
+    /* 新增：半透明矩形背景 */
+    background-color: rgba(20, 24, 29, 0.5); /* 50% 透明的網站背景色 */
+    padding: 1px 5px;
+    border-radius: 2px;
+    
+    /* 微調位置，讓點擊點在星星的中心 */
+    transform: translate(-10px, -15px); 
+}
+
+/* 建議的顏色：地名文字為純白色，對比更清晰 */
+.map-annotation span {
+    color: #FFFFFF;
+}
