@@ -1,0 +1,148 @@
+<style>
+    .map-wrapper {
+        position: relative;
+        /* 解決忽大忽小的問題：
+           設定一個最大高度，圖片會等比縮放以適應這個高度。
+           您可以自行調整 650px 這個值。 */
+        max-height: 650px; 
+        max-width: 100%; /* 確保在小螢幕上能縮小 */
+        margin: 20px auto; /* 居中 */
+        display: inline-block; /* 讓 wrapper 隨圖片內容縮放 */
+    }
+
+    /* 這是您提到的半透明圖層 */
+    .map-wrapper::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        /* 25% 透明度的黑色圖層，顏色來自您的 --bg-color */
+        background-color: rgba(20, 24, 29, 0.25); 
+        z-index: 1; /* 確保圖層在圖片之上 */
+        border-radius: 3px; /* 可選：加個小圓角 */
+    }
+
+    .map-wrapper img {
+        max-width: 100%;
+        /* 讓圖片高度填滿 wrapper 的最大高度 */
+        max-height: 650px; 
+        height: auto;
+        display: block;
+        position: relative; /* 圖片本身在 z-index: 0 */
+        z-index: 0;
+    }
+
+    /* 地圖註解的樣式 */
+    .map-annotation {
+        position: absolute;
+        z-index: 2; /* 確保註解在半透明圖層之上 */
+        
+        /* 使用網站的點陣字體 */
+        font-family: var(--font-pixel-body);
+        font-size: 16px;
+        
+        /* 模擬原圖的樣式：黃色星星 + 白色文字 */
+        color: #ffd700; /* 亮黃色星星 */
+        text-decoration: none;
+        
+        /* 這是讓文字清晰的關鍵：加上黑色文字陰影 */
+        text-shadow: 2px 2px 0px #000;
+        
+        /* 讓點擊區域大一點，並對齊星星 */
+        padding: 5px;
+        /* 微調位置，讓點擊點在星星的中心 */
+        transform: translate(-10px, -15px); 
+        
+        transition: transform 0.1s ease;
+        white-space: nowrap; /* 確保地名不會換行 */
+    }
+
+    .map-annotation span {
+        color: var(--text-color); /* 內部的文字使用全局文字顏色 */
+    }
+
+    .map-annotation:hover {
+        color: var(--primary-color);
+        transform: translate(-10px, -15px) scale(1.1); /* 懸停時放大一點 */
+    }
+    .map-annotation:hover span {
+        color: var(--primary-color);
+    }
+</style>
+
+<h1>北島薩伊那斯 | 地圖編號:100</h1>
+
+<div class="map-wrapper">
+    
+    <img src="./pages/maps/data/100.jpg" alt="北島地圖 (空白)">
+    
+    <a href="#maps/korke" class="map-annotation" style="top: 35%; left: 15%;">
+        * <span>卡坦村</span>
+    </a>
+    <a href="#maps/samsir" class="map-annotation" style="top: 5%; left: 50%;">
+        * <span>霍特爾村</span>
+    </a>
+    <a href="#maps/samsir" class="map-annotation" style="top: 6.5%; left: 57%;">
+        * <span>奇努伊海底通路</span>
+    </a>
+    <a href="#maps/samsir" class="map-annotation" style="top: 16%; left: 28%;">
+        * <span>夢德洞窟</span>
+    </a>
+    <a href="#maps/samsir" class="map-annotation" style="top: 25%; left: 29%;">
+        * <span>英雄戰場</span>
+    </a>
+    <a href="#maps/samsir" class="map-annotation" style="top: 22%; left: 67%;">
+        * <span>小豬島</span>
+    </a>
+    <a href="#maps/samsir" class="map-annotation" style="top: 30%; left: 79%;">
+        * <span>薩姆吉爾村</span>
+    </a>
+    <a href="#maps/samsir" class="map-annotation" style="top: 38%; left: 81%;">
+        * <span>薩姆吉爾莊園</span>
+    </a>
+    <a href="#maps/samsir" class="map-annotation" style="top: 40%; left: 90%;">
+        * <span>白狼公會</span>
+    </a>
+    <a href="#maps/samsir" class="map-annotation" style="top: 47%; left: 90%;">
+         <span>岬之家</span>*
+    </a>
+    <a href="#maps/marinas" class="map-annotation" style="top: 92.5%; left: 46%;">
+        * <span>瑪麗娜絲漁村</span>
+    </a>
+    <a href="#maps/marinas" class="map-annotation" style="top: 28.5%; left:46%;">
+        * <span>願藏</span>
+    </a>
+    <a href="#maps/marinas" class="map-annotation" style="top: 38%; left:45%;">
+        * <span>柯爾克礦坑</span>
+    </a>
+    <a href="#maps/marinas" class="map-annotation" style="top: 54%; left:44%;">
+        * <span>往柯爾克村</span>
+    </a>
+    <a href="#maps/marinas" class="map-annotation" style="top: 62%; left:38%;">
+        * <span>飼育員本部SBC</span>
+    </a>
+    <a href="#maps/marinas" class="map-annotation" style="top: 59%; left: 27%;">
+        * <span>阿布洞窟</span>
+    </a>
+    <a href="#maps/marinas" class="map-annotation" style="top: 70%; left: 26%;">
+        * <span>盜賊洞窟</span>
+    </a>
+    <a href="#maps/marinas" class="map-annotation" style="top: 89%; left: 35%;">
+        * <span>瑪麗娜絲莊園</span>
+    </a>
+    <a href="#maps/karutana" class="map-annotation" style="top: 58%; left: 75%;">
+        * <span>柯奧村</span>
+    </a>
+    <a href="#maps/karutana" class="map-annotation" style="top: 71%; left: 63%;">
+        * <span>柯奧山洞</span>
+    </a>
+    <a href="#maps/karutana" class="map-annotation" style="top: 51%; left: 83.9%;">
+        * <span>水田迷宮</span>
+    </a>
+    <a href="#quests/xuanhuang" class="map-annotation" style="top: 48%; left: 30.5%;">
+        * <span>玄黃洞窟</span>
+    </a>
+    
+    </div>
