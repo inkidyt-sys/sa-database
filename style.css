@@ -304,15 +304,15 @@ select:focus {
 /* --- 地圖頁面樣式 (Map Page Styles) --- */
 .map-wrapper {
     position: relative;
-    max-height: 650px; 
+    max-height: 750px; 
     max-width: 100%;
     margin: 20px auto;
     display: inline-block;
 }
 
 .map-wrapper img {
+    max-height: 750px; 
     max-width: 100%;
-    max-height: 650px; 
     height: auto;
     display: block;
     position: relative;
