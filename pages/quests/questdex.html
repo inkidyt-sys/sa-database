@@ -1,0 +1,172 @@
+<style>
+    /* --- 任務查詢工具專屬樣式 --- */
+    .questdex-container {
+        display: flex;
+        flex-direction: column;
+        gap: 10px; /* 篩選器和結果區的間距 */
+    }
+
+    /* 篩選器面板 */
+    .quest-search-panel {
+        display: flex;
+        flex-wrap: wrap; /* 在小螢幕上允許換行 */
+        gap: 10px; /* 元件之間的間距 */
+        align-items: center;
+    }
+    
+    .quest-search-panel select.search-input {
+        flex: 0 0 180px; /* 不放大、不縮小、基礎寬度 200px */
+    }
+
+    .quest-search-panel input.search-input {
+        flex: 1 1 250px; /* 允許放大、縮小、基礎寬度 250px */
+    }
+    
+    .quest-search-panel .search-btn {
+        flex-shrink: 0; /* 按鈕不縮小 */
+    }
+    
+    /* *** 新增：複製 mondex.html 的按鈕樣式 *** */
+    .quest-search-panel .search-btn {
+        background-color: #2a9d8f;
+        border: 2px solid #2a9d8f;
+        color: #fff;
+        padding: 3px 15px;
+        font-family: var(--font-pixel-body);
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+    .quest-search-panel .search-btn:hover {
+        background-color: #268a7e;
+    }
+
+
+    /* 任務輸出區 */
+    .quest-output-area {
+        display: flex;
+        gap: 10px;
+        /* 在手機上改為垂直堆疊 */
+        flex-direction: column;
+    }
+    /* 攻略顯示區的 meta-info 樣式 */
+    .quest-meta-info {
+        padding-left: 20px; /* 縮排 20px */
+    }
+    .quest-meta-info p {
+        line-height: 1.3;   /* 縮小行距 */
+        margin-top: 5px;    /* 縮小段落間距 */
+        margin-bottom: 5px;
+    }
+    /* 讓獎勵區塊的 h3 也套用行距設定 */
+    .quest-meta-info h3 {
+        line-height: 1.3;
+        margin-bottom: 5px;
+    }
+    /* 任務列表 */
+    #quest-list-container {
+        border: 2px solid var(--border-color);
+        background-color: rgba(0,0,0,0.2);
+        min-height: 450px;
+        padding: 15px;
+        
+        /* *** 修改：改為 280px 固定寬度 *** */
+        flex: 0 0 180px; 
+        
+        max-height: 600px; /* 增加最大高度並允許滾動 */
+        overflow-y: auto;
+    }
+    
+    /* 列表中的項目 */
+    .quest-item {
+     padding: 4px 8px; /* <-- 修改：縮小 padding (更緊湊) */
+     font-size: 16px;    /* <-- 新增：縮小字體 */
+     cursor: pointer;
+     border-bottom: 1px solid var(--border-color);
+    }
+    .quest-item:last-child {
+        border-bottom: none;
+    }
+    .quest-item:hover,
+    .quest-item.active { /* 增加一個 .active 狀態，用於 JS */
+        background-color: var(--primary-color);
+        color: var(--bg-color);
+        text-shadow: none;
+    }
+
+    /* 任務攻略顯示區 */
+    #quest-guide-display {
+        border: 2px solid var(--border-color);
+        background-color: var(--card-bg); /* 使用卡片背景色 */
+        min-height: 300px;
+        padding: 20px;
+        
+        /* *** 修改：改為自動填滿剩餘空間 *** */
+        flex: 1; 
+        
+        color: var(--text-color);
+    }
+    #quest-guide-display h3 {
+        color: var(--primary-color);
+        font-family: var(--font-pixel-title);
+        margin-top: 0;
+    }
+    
+    /* 響應式：當螢幕太窄時，列表和攻略區垂直堆疊 */
+    @media (min-width: 960px) {
+        .quest-output-area {
+            flex-direction: row; /* 寬螢幕時恢復左右並排 */
+        }
+    }
+
+</style>
+
+<h1>任務查詢工具</h1>
+
+<div class="questdex-container">
+
+    <div class="quest-search-panel">
+        
+        <select id="quest-area-filter" class="search-input">
+            <option value="all">全區域</option>
+            <option value="北島">北島</option>
+            <option value="南島">南島</option>
+            <option value="吉魯島">吉魯島</option>
+            <option value="沙姆島">沙姆島</option>
+            <option value="波拉島">波拉島</option>
+            <option value="伊甸">伊甸</option>
+            <option value="淚之海">淚之海</option>
+            <option value="冰城">冰城</option>
+            <option value="魔域">魔域</option>
+        </select>
+        
+        <select id="quest-series-filter" class="search-input">
+            <option value="all">所有任務</option>
+            <option value="完美人">完美人系列</option>
+            <option value="轉生">轉生任務</option>
+            <option value="精靈王">精靈王系列</option>
+            <option value="六轉">六轉任務</option>
+            <option value="精召">精靈召喚</option>
+            <option value="環島">環島任務</option>
+            <option value="狀態道具">狀態道具</option>
+            <option value="其他">其他</option>
+        </select>
+        
+        <input type="text" id="quest-name-input" class="search-input" placeholder="請輸入任務名稱關鍵字...">
+        
+        <button id="quest-search-btn" class="search-btn">查詢</button>
+    </div>
+    
+    <div class="quest-output-area">
+        
+        <div id="quest-list-container">
+            <p>點擊「查詢」篩選任務。</p>
+        </div>
+        
+        <div id="quest-guide-display">
+            <p>點選左側任務以顯示攻略。</p>
+        </div>
+
+    </div>
+
+</div>

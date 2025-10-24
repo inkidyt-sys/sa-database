@@ -26,6 +26,149 @@ function initializeMondexLogic() {
     loadAllData();
 }
 
+// --- 任務查詢工具的專屬邏輯 ---
+function initializeQuestLogic() {
+    // 獲取 UI 元素
+    const areaFilter = document.getElementById('quest-area-filter');
+    const seriesFilter = document.getElementById('quest-series-filter');
+    const nameInput = document.getElementById('quest-name-input');
+    const searchBtn = document.getElementById('quest-search-btn');
+    const listContainer = document.getElementById('quest-list-container');
+    const guideDisplay = document.getElementById('quest-guide-display');
+
+    let allQuests = []; // 用來儲存從 JSON 載入的所有任務
+
+    // 1. 載入 JSON 資料
+    async function loadQuestData() {
+        try {
+            const response = await fetch('./pages/quests/data/quests.json');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            allQuests = await response.json();
+            // 頁面載入時不自動查詢，等待使用者點擊
+        } catch (error) {
+            console.error("載入任務資料失敗:", error);
+            listContainer.innerHTML = '<p style="color: red;">任務資料載入失敗，請檢查 pages/quests/data/quests.json</p>';
+        }
+    }
+
+    // 2. 執行篩選、排序、並渲染列表
+    function performSearch() {
+        // 獲取篩選條件
+        const selectedArea = areaFilter.value;
+        const selectedSeries = seriesFilter.value;
+        const searchTerm = nameInput.value.toLowerCase().trim();
+
+        // 進行篩選
+        const filteredQuests = allQuests.filter(quest => {
+            // 檢查區域 (all 或 包含)
+            const matchesArea = (selectedArea === 'all' || quest.area.includes(selectedArea));
+            
+            // 檢查系列 (all 或 包含)
+            // 您的 <option value="完美人"> 對應 "完美人任務"
+            const matchesSeries = (selectedSeries === 'all' || quest.series.includes(selectedSeries));
+            
+            // 檢查名稱 (關鍵字)
+            const matchesName = (searchTerm === '' || quest.name.toLowerCase().includes(searchTerm));
+
+            return matchesArea && matchesSeries && matchesName;
+        });
+
+        // 依照您的要求，用 "編號" (id_num) 排序
+        filteredQuests.sort((a, b) => a.id_num - b.id_num);
+
+        // 渲染列表
+        renderList(filteredQuests);
+    }
+
+    // 3. 渲染列表 (傳入已篩選的資料)
+    function renderList(quests) {
+        if (quests.length === 0) {
+            listContainer.innerHTML = '<p>找不到符合條件的任務。</p>';
+            guideDisplay.innerHTML = '<p>點選左側任務以顯示攻略。</p>'; // 清空攻略區
+            return;
+        }
+
+        listContainer.innerHTML = quests.map(quest => {
+            // 使用 data-id 儲存任務編號，方便點擊時抓取
+            return `<div class="quest-item" data-id="${quest.id_num}">
+                ${quest.name}
+            </div>`;
+        }).join('');
+        
+        // 預設顯示第一筆任務的攻略
+        displayGuide(quests[0].id_num);
+        // 標記第一項為 .active
+        listContainer.querySelector('.quest-item').classList.add('active');
+    }
+
+    // 4. 顯示攻略
+    function displayGuide(questIdNum) {
+        // 轉為數字
+        const id = parseInt(questIdNum, 10);
+        
+        // 從 allQuests 中找到完整的任務資料
+        const quest = allQuests.find(q => q.id_num === id);
+
+        if (!quest) {
+            guideDisplay.innerHTML = '<p style="color: red;">錯誤：找不到任務資料。</p>';
+            return;
+        }
+
+        // 組合 HTML 並顯示
+        guideDisplay.innerHTML = `
+            <h3>${quest.name}</h3>
+            <div class="quest-meta-info">
+                <p><strong>區域:</strong> ${quest.area}</p>
+                <p><strong>限制:</strong> ${quest.limitations}</p>
+                <p><strong>任務獎勵:</strong> ${quest.reward_text}</p>
+            </div>
+            <hr>
+            
+            <h3>${quest.guide_title}</h3>
+            
+            <div class="quest-meta-info">
+                ${quest.guide_content_html}
+            </div>
+        `;
+        
+        // 處理 .active 狀態
+        // 移除所有 .active
+        listContainer.querySelectorAll('.quest-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        // 為當前點擊的項目添加 .active
+        const activeItem = listContainer.querySelector(`.quest-item[data-id="${questIdNum}"]`);
+        if (activeItem) {
+            activeItem.classList.add('active');
+        }
+    }
+
+    // 5. 綁定事件
+    // "查詢" 按鈕
+    searchBtn.addEventListener('click', performSearch);
+    
+    // 關鍵字輸入框支援 Enter
+    nameInput.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
+
+    // 列表點擊 (使用事件委派)
+    listContainer.addEventListener('click', (e) => {
+        const item = e.target.closest('.quest-item');
+        if (item) {
+            displayGuide(item.dataset.id);
+        }
+    });
+
+    // 6. 執行
+    loadQuestData();
+}
+
+
 // --- 網站全局導覽邏輯 ---
 document.addEventListener('DOMContentLoaded', function () {
     const mainContent = document.querySelector('.main-content');
@@ -40,9 +183,26 @@ document.addEventListener('DOMContentLoaded', function () {
             const response = await fetch(filePath);
             if (response.ok) {
                 mainContent.innerHTML = await response.text();
+                
+                // 處理怪物查詢工具
                 if (pagePath === 'monsters/mondex') {
                     initializeMondexLogic();
                 }
+                // *** ↓↓↓ 在這裡插入新程式碼 ↓↓↓ ***
+                if (pagePath === 'quests/questdex') { // 確保檔名匹配
+                    initializeQuestLogic();
+                }
+                // *** ↑↑↑ 新程式碼結束 ↑↑↑ ***
+                // *** 新增的邏輯：檢查地圖模式 ***
+                if (pagePath.startsWith('maps/')) {
+                    // 檢查頁面是否包含「互動式地圖」的容器
+                    if (document.querySelector('.interactive-map-container')) {
+                        // 如果是，就初始化「新模式」
+                        initializeInteractiveMap();
+                    }
+                    // 如果沒有，就什麼都不做 (會自動採用 100.html 的舊模式)
+                }
+
             } else {
                 mainContent.innerHTML = `<h1>錯誤 404</h1><p>找不到頁面: <code>${filePath}</code></p>`;
             }
@@ -51,7 +211,137 @@ document.addEventListener('DOMContentLoaded', function () {
             mainContent.innerHTML = `<h1>載入錯誤</h1><p>無法載入頁面內容。</p>`;
         }
     }
+    // --- 互動式地圖 (新模式) 的初始化邏輯 ---
+    function initializeInteractiveMap() {
+        const svgCanvas = document.getElementById('map-line-svg');
+        const labels = document.querySelectorAll('.map-label-list li');
+        const mapWrapper = document.querySelector('.map-wrapper');
+        const mapDots = document.querySelectorAll('.map-dot');
 
+        if (!svgCanvas || !labels.length || !mapWrapper) {
+            console.warn("互動式地圖缺少必要元素 (svgCanvas, labels, mapWrapper)，初始化失敗。");
+            return; 
+        }
+
+        // 1. 為所有標籤和點建立 SVG 線條
+        labels.forEach(label => {
+            const targetId = label.dataset.targetId;
+            const dot = document.getElementById(targetId);
+            if (dot) {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.id = 'line-' + targetId;
+                line.classList.add('map-line');
+                svgCanvas.appendChild(line);
+            }
+        });
+
+        // 2. 建立一個函數來更新單一線條的位置 (關鍵)
+        function updateLine(label, dot, line) {
+            // 取得 mapWrapper 的邊界 (基準點)
+            const wrapperRect = mapWrapper.getBoundingClientRect();
+            
+            // 取得「點」相對於 wrapper 的座標 (即圖示尖端位置)
+            const dotX = dot.offsetLeft;
+            const dotY = dot.offsetTop;     
+
+            // 取得「標籤」相對於 wrapper 的邊緣座標
+            const labelRect = label.getBoundingClientRect();
+            
+            let labelX;
+            // 判斷標籤在左側還右側
+            if ((labelRect.left + labelRect.width / 2) < wrapperRect.left) {
+                // 標籤在左側，線連到標籤的「右邊緣」
+                labelX = labelRect.right - wrapperRect.left;
+            } else {
+                // 標籤在右側，線連到標籤的「左邊緣」
+                labelX = labelRect.left - wrapperRect.left;
+            }
+            // 線的 Y 軸對齊標籤的中間
+            const labelY = (labelRect.top + labelRect.height / 2) - wrapperRect.top;
+
+            // 設定 SVG 線條的起點 (x1, y1) 和終點 (x2, y2)
+            line.setAttribute('x1', dotX);
+            line.setAttribute('y1', dotY);
+            line.setAttribute('x2', labelX);
+            line.setAttribute('y2', labelY);
+        }
+
+        // 3. 處理點擊事件 (標籤)
+        labels.forEach(label => {
+            label.addEventListener('click', () => {
+                toggleActiveState(label.dataset.targetId);
+            });
+        });
+
+        // 4. 處理點擊事件 (地圖上的點)
+        mapDots.forEach(dot => {
+            dot.addEventListener('click', () => {
+                toggleActiveState(dot.id);
+            });
+        });
+
+        // 5. 抽離出共用的切換邏輯
+        function toggleActiveState(targetId) {
+            const dot = document.getElementById(targetId);
+            const line = document.getElementById('line-' + targetId);
+            // 找到對應的 label
+            const label = document.querySelector(`li[data-target-id="${targetId}"]`);
+
+            if (dot && line && label) {
+                // 切換 active 狀態
+                label.classList.toggle('active');
+                line.classList.toggle('active');
+
+                // 如果是啟動狀態，就更新一次線條位置
+                if (label.classList.contains('active')) {
+                    updateLine(label, dot, line);
+                }
+            }
+        }
+
+        // 6. (重要) 處理視窗縮放 (使用 Debounce)
+        let resizeTimer;
+        const debouncedUpdate = () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                // 重新計算所有「可見」的線條
+                document.querySelectorAll('.map-label-list li.active').forEach(activeLabel => {
+                    const targetId = activeLabel.dataset.targetId;
+                    const dot = document.getElementById(targetId);
+                    const line = document.getElementById('line-' + targetId);
+                    if (dot && line) {
+                        updateLine(activeLabel, dot, line);
+                    }
+                });
+            }, 100); // 停止縮放 100ms 後才執行
+    };
+    
+    window.addEventListener('resize', debouncedUpdate);
+
+    // 7. 處理側邊欄開合 (也會影響座標)
+    const hamburger = document.querySelector('.hamburger-menu');
+    if (hamburger) {
+        // 監聽側邊欄的 transition 動畫結束事件
+        sidebar.addEventListener('transitionend', debouncedUpdate);
+    }
+    // --- *** 在這裡插入新程式碼 *** ---
+    // 8. 預設啟用 "村", "莊園", "牧場"
+    labels.forEach(label => {
+        const labelText = label.textContent || label.innerText;
+        // 根據您 200.html 的設定，牧場也設為紅色，所以一併加入
+        if (labelText.includes('村') || labelText.includes('莊園') || labelText.includes('城')) { 
+            const targetId = label.dataset.targetId;
+            const line = document.getElementById('line-' + targetId);
+            if (line) {
+                // 僅添加 active class，讓 onload 時的 debouncedUpdate 去繪製
+                label.classList.add('active');
+                line.classList.add('active');
+            }
+        }
+    });
+    // --- *** 新程式碼結束 *** ---
+    
+}
     function setActiveState(pageKey) {
         if (!pageKey) return;
         document.querySelectorAll('.sidebar li').forEach(i => i.classList.remove('active'));

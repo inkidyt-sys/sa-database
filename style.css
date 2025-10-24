@@ -345,3 +345,120 @@ select:focus {
 .map-annotation span {
     color: #FFFFFF;
 }
+
+/* --- 互動式地圖樣式 (新模式) --- */
+
+/* 1. 三欄式佈局 (可使用 Flexbox) */
+.interactive-map-container {
+    display: flex;
+    justify-content: flex-start;  /* <-- 由 space-between 改為 center */
+    align-items: center;      /* <-- 新增此行 */
+    gap: 1px;
+}
+/* 修正：當 map-wrapper 在互動容器中時，
+   移除會與 justify-content 衝突的 auto margin */
+.interactive-map-container .map-wrapper {
+    margin: 0;
+    display: block; /* 確保它是一個標準的區塊級 flex 項目 */
+}
+/* 2. 左右列表的樣式 */
+.map-label-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex-basis: 150px; /* 列表基礎寬度 */
+    flex-shrink: 0; /* 不縮小 */
+    font-family: var(--font-pixel-body);
+}
+/* 修改後 (加入 text-shadow, 移除 font-size) */
+.map-label-list li {
+    padding: 8px 10px;
+    margin-bottom: 5px;
+    background-color: var(--card-bg);
+    border: 2px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    /* font-size: 16px;  <-- 移除此行 (交給 JS 控制) */
+    text-shadow: 2px 2px 0px #000; /* <-- 新增此行 */
+}
+.map-label-list li:hover {
+    border-color: var(--primary-color);
+}
+/* 點擊後高亮的樣式 */
+.map-label-list li.active {
+    background-color: var(--primary-color);
+    color: var(--bg-color);
+    text-shadow: none;
+}
+
+/* 3. 地圖上的「點」 (新版：倒三角) */
+.map-dot {
+    position: absolute;
+    width: 0;
+    height: 0;
+
+    /* 使用 border 製作一個倒三角 */
+    border-left: 7px solid transparent;   /* 三角形的底邊寬度 (7+7 = 14px) */
+    border-right: 7px solid transparent;
+    border-top: 14px solid;           /* 三角形的高度 */
+    
+    /* * 關鍵：
+     * 1. 繼承您在 200.html 中設定的 color
+     * 2. 預設為黃色
+    */
+    color: #ffd700; 
+    border-top-color: currentColor; 
+    
+    /* * 關鍵：
+     * 1. translate(-50%) 水平置中
+     * 2. translate(-100%) 將整個三角型向上提 100% 高度
+     * 這樣它的「尖端」就會精確地在座標點上
+    */
+    transform: translate(-50%, -100%);
+    
+    z-index: 2;
+    cursor: pointer;
+}
+
+/* 4. SVG 畫布 (關鍵) */
+.map-line-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1; /* 在點(z-index: 2)的後面，但在圖片(z-index: 0)的前面 */
+    pointer-events: none; /* 讓它可以被點穿，才不會擋住點擊 */
+}
+
+/* 5. SVG 線條的樣式 */
+.map-line {
+    stroke: #3e10bd; /* 線條顏色 */
+    stroke-width: 2px;
+    stroke-dasharray: 4 1; /* 虛線效果 */
+    display: none; /* 預設隱藏 */
+}
+/* 當被啟動時，顯示線條 */
+.map-line.active {
+    display: block;
+}
+
+/* --- 互動式地圖的 RWD (手機版) --- */
+@media (max-width: 768px) {
+    .interactive-map-container {
+        /* 在手機上從「三欄」變為「垂直堆疊」 */
+        flex-direction: column;
+    }
+    
+    .map-label-list {
+        flex-basis: auto; /* 寬度自動 */
+        display: flex;
+        flex-wrap: wrap; /* 標籤會自動換行 */
+        gap: 8px; /* 標籤間距 */
+    }
+
+    .map-label-list li {
+        /* font-size: 14px; <-- 移除此行 (交給 JS 控制) */
+        margin-bottom: 0;
+    }
+}
