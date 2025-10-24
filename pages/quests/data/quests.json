@@ -1,12 +1,12 @@
 [
-  {
+    {
     "id_num": 1,
     "name": "不可思議的貝殼",
     "area": "北島,南島",
     "series": "完美人任務",
     "limitations": "無",
     "guide_title": "任務流程",
-    "guide_content_html": "<p>薩姆吉爾村與卡魯它那村出生者：<br>先找薩村<span class='item-name'>日美子</span><span class='coord'>(74,113)</span>，再找漁村<span class='item-name'>彌生</span><span class='coord'>(53,79)</span>。</p><p>瑪麗娜絲漁村與加加村出生者：<br>先找漁村<span class='item-name'>彌生</span><span class='coord'>(53,79)</span>，再找薩村<span class='item-name'>日美子</span><span class='coord'>(74,113)</span>。</p><p><b>流程簡述：</b><br>1. 與<span class='item-name'>日美子</span><span class='coord'>(74,113)</span>接任務。<br>2. 送<span class='item-name'>一朵花</span>到瑪麗那絲村給<span class='item-name'>彌生</span><span class='coord'>(53,79)</span>。<br>3. 可重複解。</p>",
+    "guide_content_html": "<p>薩姆吉爾村與卡魯它那村出生者：<br>先找薩村日美子，再找漁村彌生。</p><p>瑪麗娜絲漁村與加加村出生者：<br>先找漁村彌生，再找薩村日美子。</p><p><b>流程簡述：</b><br>1. 與薩村<span class='item-name'>日美子</span><span class='coord'>(57,124)</span>接任務取得仙尼亞的花。<br>2. 送到瑪麗那絲村給<span class='item-name'>彌生</span><span class='coord'>(53,79)</span>。<br>3. 可重複解。</p>",
     "reward_text": "<span class='item-name'>不可思議的貝殼</span> x1"
   }
 ]  
