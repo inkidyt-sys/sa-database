@@ -1,12 +1,72 @@
 [
-    {
+  {
     "id_num": 1,
     "name": "不可思議的貝殼",
     "area": "北島,南島",
     "series": "完美人任務",
-    "limitations": "無",
+    "limitations": "無|可重複解",
+    "reward_text": "不可思議的貝殼",
     "guide_title": "任務流程",
-    "guide_content_html": "<p>薩姆吉爾村與卡魯它那村出生者：<br>先找薩村日美子，再找漁村彌生。</p><p>瑪麗娜絲漁村與加加村出生者：<br>先找漁村彌生，再找薩村日美子。</p><p><b>流程簡述：</b><br>1. 與薩村<span class='item-name'>日美子</span><span class='coord'>(57,124)</span>接任務取得仙尼亞的花。<br>2. 送到瑪麗那絲村給<span class='item-name'>彌生</span><span class='coord'>(53,79)</span>。<br>3. 可重複解。</p>",
-    "reward_text": "<span class='item-name'>不可思議的貝殼</span> x1"
+    "guide_content_html": "<p>薩姆吉爾村與卡魯它那村出生者先找薩村日美子在找漁村彌生<br>瑪麗娜絲漁村與加加村出生者先找漁村彌生在找薩村日美子</p><p>1.薩村日美子<span class='coord'>(57,124)</span>接任務取得仙尼亞的花<br>2.送到漁村彌生<span class='coord'>(53,79)</span>完成任務。</p>"
+  },
+  {
+    "id_num": 2,
+    "name": "成人禮",
+    "area": "北島",
+    "series": "完美人任務",
+    "limitations": "lv30",
+    "reward_text": "儀之兜(防+15 敏-3 全異常狀態防止+3)",
+    "guide_title": "任務流程",
+    "guide_content_html": "<p>1.柯奧村<span class='coord'>(174,402)</span>進入海底通路<br>2.地下二樓<span class='coord'>(30,13)</span>進入試煉地圖<br>3.找老頭<span class='coord'>(14,7)</span>接任務<br>4.至儀式審判的差使<span class='coord'>(188,14)</span>取得15姑勾玉<br>5.回去找老頭完成任務</p><p>*DSA直接抓一隻卡達魯卡斯給老頭即可完成任務</p>"
+  },
+  {
+    "id_num": 3,
+    "name": "亞姆亞姆的斧頭",
+    "area": "北島",
+    "series": "完美人任務",
+    "limitations": "無",
+    "reward_text": "亞姆亞姆的斧頭(攻+35、防-10、敏-10)",
+    "guide_title": "任務流程",
+    "guide_content_html": "<p>1.卡坦村與亞姆亞姆<span class='coord'>(70,89)</span>接任取得斧頭<br>2.至霍爾特村馬提<span class='coord'>(622,193)</span>交出斧頭喚取回信<br>3.回去交給亞姆亞姆完成任務</p>"
+  },
+  {
+    "id_num": 4,
+    "name": "恐龍博士",
+    "area": "北島,南島",
+    "series": "完美人任務",
+    "limitations": "lv30",
+    "reward_text": "黑骨飾品、Lv1布克布克",
+    "guide_title": "任務流程",
+    "guide_content_html": "<p>1.於霍爾特村外抓LV15魯尼帖斯<br>2.於琉璃洞外抓綠虎練至lv30以上<br>3.前往北島柯奧小山洞<span class='coord'>(328,633)</span><br>4.6樓到找恐龍博士<span class='coord'>(11,12)</span>交付寵物完成任務</p>"
+  },
+  {
+    "id_num": 5,
+    "name": "信差馬祖",
+    "area": "北島",
+    "series": "完美人任務",
+    "limitations": "無",
+    "reward_text": "<p>馬祖的棍棒(攻+35 恩惠的精靈Lv3)<br/>馬祖的斧頭 (攻+50 防-20 敏-20 滋潤的精靈Lv3)<br/>馬祖的茅 (攻+45 敏-10 魅+4 治癒的精靈Lv3)</p>",
+    "guide_title": "任務流程",
+    "guide_content_html": "<p>1.霍特爾村找村莊青年<span class='coord'>(69,51)</span>接任務取得郵寄物<br>2.前往北島靠近水田的家<span class='coord'>(548,637)</span>進入水田迷宮<br>3.3F將郵寄物交給卡依特<span class='coord'>(95,88)</span>完成任務</p>"
+  },
+  {
+    "id_num": 6,
+    "name": "卡坦的願望",
+    "area": "北島,南島,波拉島",
+    "series": "完美人任務",
+    "limitations": "無",
+    "reward_text": "Lv1修寶.Lv1朵拉比斯",
+    "guide_title": "任務流程",
+    "guide_content_html": "<p>1.於現代波拉島海邊抓取加格、加格拉、克凱邦斯、邦恩吉並練至25等<br>2.於卡坦村外找卡坦換取修寶<br>3.卡魯它那牧場<span class='coord'>(328,660)</span>抓25級的火雞、奇寶、克克洛斯；<br>4.奇喀喀村附近抓16等的霍爾克並練至25等<br>5.於卡坦村外找卡坦換取朵拉比斯</p>"
+  },
+  {
+    "id_num": 7,
+    "name": "夢德洞窟",
+    "area": "北島",
+    "series": "完美人任務",
+    "limitations": "成人禮、lv30",
+    "reward_text": "<p>黃色大手飾 (魅+5 睡眠耐性+30)<br>勾玉美麗的勾玉<br>芙雷雅Lv1鎧6(防+20 敏-6 滋潤的精靈Lv1)</p>",
+    "guide_title": "任務流程",
+    "guide_content_html": "<p>1.柯爾克村找「村姑」<span class='coord'>(96,75)</span>接任務<br>2.霍特爾村找「村姑」<span class='coord'>(64,65)</span>對話<br>3.卡坦村找「卡坦的年輕人」<span class='coord'>(71,77)</span>對話<br>4.北島<span class='coord'>(442,127)</span>說\"在卡坦有夢德\"進入夢德洞窟<br>5.6F打倒守門人後與夢德族長拿取 霍特爾的保護石、卡坦的保護石<br>6.依序回卡坦、霍特爾村、柯爾克村還任</p>"
   }
-]  
+]
