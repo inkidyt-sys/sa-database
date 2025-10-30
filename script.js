@@ -383,11 +383,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
     subMenuParents.forEach(item => {
         const toggle = item.querySelector('.submenu-title-toggle');
-        if(toggle){
-            toggle.addEventListener('click', function(e){
-                e.stopPropagation();
-                item.classList.toggle('open');
-            });
+        
+        // 讓我們也讓標題可以被點擊 (針對您新的地圖分類)
+        const title = item.querySelector('.submenu-category-title'); 
+
+        const clickLogic = function(e) {
+            e.stopPropagation(); // 防止點擊穿透
+            
+            const wasOpen = item.classList.contains('open');
+            
+            // 關鍵：找到 *同層級* 的所有 .has-children 項目並關閉它們
+            const parentSubmenu = item.closest('.submenu');
+            if (parentSubmenu) {
+                const allSiblings = parentSubmenu.querySelectorAll('.has-children');
+                allSiblings.forEach(i => i.classList.remove('open'));
+            }
+            
+            // 如果點擊的不是一個已經打開的，就打開它
+            if (!wasOpen) {
+                item.classList.add('open');
+            }
+        };
+
+        if(toggle) {
+            toggle.addEventListener('click', clickLogic);
+        }
+        if(title) {
+            title.addEventListener('click', clickLogic);
         }
     });
 
