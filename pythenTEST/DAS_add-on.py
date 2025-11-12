@@ -209,7 +209,7 @@ class DSAHelperApp(tk.Tk):
         self.scaled_char_column_width = int(BASE_CHAR_COLUMN_WIDTH * self.scaling_factor)
 
         # (★★★) v3.10: 更新標題
-        self.title("DSA新端輔助程式 v3.10 by 石器推廣大使 陳財佑")
+        self.title("DSA新端輔助程式 v4.00 by 石器推廣大使 陳財佑")
         
         try:
             # 這裡會載入 icon.ico (需要放在同資料夾)
