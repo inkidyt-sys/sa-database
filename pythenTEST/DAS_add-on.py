@@ -158,13 +158,19 @@ class ScrollableFrame(ttk.Frame):
         self.canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
         self.inner_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
         
-        self.bind_mouse_wheel(self.canvas)
-        self.bind_mouse_wheel(self.inner_frame)
+        # (★★★) v3.9 修正: 移除遞迴綁定
+        # 只綁定需要滾動的 3 個主要元件。
+        # 這能避免在 660+ 個子元件上綁定事件, 解決啟動時的遲滯感。
+        self.bind("<MouseWheel>", self.on_mouse_wheel)
+        self.canvas.bind("<MouseWheel>", self.on_mouse_wheel)
+        self.inner_frame.bind("<MouseWheel>", self.on_mouse_wheel)
 
-    def bind_mouse_wheel(self, widget):
-        widget.bind("<MouseWheel>", self.on_mouse_wheel)
-        for child in widget.winfo_children():
-            self.bind_mouse_wheel(child)
+
+    # (★★★) v3.9 修正: 刪除這個遞迴函式 (★★★)
+    # def bind_mouse_wheel(self, widget):
+    #     widget.bind("<MouseWheel>", self.on_mouse_wheel)
+    #     for child in widget.winfo_children():
+    #         self.bind_mouse_wheel(child)
             
     def on_mouse_wheel(self, event):
         if self.orient == "vertical":
@@ -175,19 +181,36 @@ class ScrollableFrame(ttk.Frame):
 
 class DSAHelperApp(tk.Tk):
     def __init__(self):
-        super().__init__()
+        super().__init__() # 必須先初始化 TK
         
-        # (★★★) v3.7 修正: 更新標題
-        self.title("DSA新端輔助程式 v3.7         by 石器推廣大使 陳財佑")
-        
-        # (★★★) 在這裡加入你的圖示 (★★★)
+        # (★★★) v3.8: 動態 DPI 縮放 (★★★)
+        # 1. 取得 TKinter 感知到的 DPI 縮放比例
+        #    (因為有 SetProcessDpiAwareness(1), 這裡會回傳 1.0, 1.25, 1.5 等)
         try:
+            scaling_factor = self.tk.call('tk', 'scaling')
+        except Exception:
+            scaling_factor = 1.0 # 預設為 100%
+
+        # 2. 定義在 100% (scaling_factor=1.0) 情況下的基礎大小
+        #    (基準: 1420x420 @ 150%)
+        BASE_WIDTH = 690  # (1420 / 1.5)
+        BASE_HEIGHT = 210 # (420 / 1.5)
+
+        # 3. 根據當前縮放比例，計算出新的窗口大小
+        scaled_width = int(BASE_WIDTH * scaling_factor)
+        scaled_height = int(BASE_HEIGHT * scaling_factor)
+
+        # (★★★) v3.9: 更新標題
+        self.title("DSA新端輔助程式 v3.9         by 石器推廣大使 陳財佑")
+        
+        try:
+            # 這裡會載入 icon.ico (需要放在同資料夾)
             self.iconbitmap("icon.ico")
         except tk.TclError:
             self.log("錯誤: 找不到 icon.ico 檔案。")
         
-        # (★★★) v3.4: 指定預設高寬
-        self.geometry("1420x420")
+        # (★★★) v3.4: 指定預設高寬 (現在是動態的)
+        self.geometry(f"{scaled_width}x{scaled_height}") 
 
         # (★★★) v3.0: 寬度固定, 高度可拉伸
         self.resizable(False, True) 
@@ -203,10 +226,13 @@ class DSAHelperApp(tk.Tk):
         self.refresh_rate_var = tk.StringVar()
         self.refresh_rate_combo = None # 儲存 Combobox 元件
         
+        # (★★★) v3.9: 遊戲設置 UI (照舊, 預先建立)
         self.setting_widgets = []   
-        self.person_vars = []       
-        self.pet_vars_list = []     
-        self.char_frames = []       
+        
+        # (★★★) v3.9: 人寵資料 UI (初始化為空)
+        self.person_vars = [None] * MAX_CLIENTS       
+        self.pet_vars_list = [None] * MAX_CLIENTS     
+        self.char_frames = [None] * MAX_CLIENTS       
 
         self.tab_frame_settings = None 
         self.tab_frame_char = None     
@@ -309,7 +335,7 @@ class DSAHelperApp(tk.Tk):
     # --- (★★★) v3.4: UI 建立 (新增刷新頻率) ---
 
     def create_settings_tab(self, tab_frame):
-        """(v3.4) 建立「遊戲設置」頁籤 (新增全局刷新)"""
+        """(v3.9) 建立「遊戲設置」頁籤 (照舊, 預先建立)"""
         
         # (★★★) v3.4: 建立全局設定 (刷新頻率)
         global_settings_frame = ttk.Frame(tab_frame)
@@ -350,9 +376,9 @@ class DSAHelperApp(tk.Tk):
                 "widgets": widgets_dict
             })
             frame.pack_forget() 
-
-        # (★★★) v3.7 修正: 滾輪綁定移至此處, 避免重複綁定
-        self.tab_frame_settings.bind_mouse_wheel(self.tab_frame_settings.inner_frame)
+        
+        # (★★★) v3.9 修正: 此行已在 v3.7 修正時移除
+        # self.tab_frame_settings.bind_mouse_wheel(self.tab_frame_settings.inner_frame)
 
 
     def _create_settings_ui_frame(self, parent, client_index=0):
@@ -395,48 +421,23 @@ class DSAHelperApp(tk.Tk):
 
 
     def create_character_tab(self, tab_frame):
-        """v2.9: 建立「人寵資料」頁籤 (純複選, 垂直)"""
+        """(★★★) v3.9: 建立「人寵資料」頁籤 (UI將動態建立)"""
         self.tab_frame_char = ScrollableFrame(tab_frame, orient="vertical") 
         self.tab_frame_char.pack(fill="both", expand=True) 
-
-        self._create_char_ui_all(self.tab_frame_char.inner_frame)
         
-        # (★★★) v3.7 修正: 滾輪綁定移至此處, 避免重複綁定
-        self.tab_frame_char.bind_mouse_wheel(self.tab_frame_char.inner_frame)
+        # (★★★) v3.9: 確保 inner_frame 會隨 grid 縮放
+        self.tab_frame_char.inner_frame.columnconfigure(0, weight=1)
 
-
-    def _create_char_ui_all(self, parent_frame):
-        """(v3.1) 建立「全部」的人寵資料 UI (修正寬度)"""
-        parent_frame.columnconfigure(0, weight=1) 
+        # (★★★) v3.9 修正: _create_char_ui_all() 已被移除
+        # 相關 UI 將在 update_all_displays 中動態建立
         
-        self.person_vars = [] 
-        self.pet_vars_list = [] 
-        self.char_frames = [] 
+        # (★★★) v3.9 修正: 此行已在 v3.7 修正時移除
+        # self.tab_frame_char.bind_mouse_wheel(self.tab_frame_char.inner_frame)
 
-        for i in range(MAX_CLIENTS):
-            client_frame = ttk.Labelframe(parent_frame, text=f"窗口 {i+1}", padding=5)
-            client_frame.grid(row=i, column=0, sticky="ew", padx=5, pady=5) 
-            
-            # (★★★) v3.1: 預先設定最小寬度
-            for col_idx in range(0, 11, 2):
-                client_frame.columnconfigure(col_idx, minsize=170)
-            client_frame.rowconfigure(0, weight=1)
-            
-            self.char_frames.append(client_frame) 
-            
-            person_vars_dict = {}
-            self.create_person_column(client_frame, 0, person_vars_dict)
-            self.person_vars.append(person_vars_dict)
-            
-            pet_vars_list_for_client = []
-            for p_idx in range(5):
-                sep = ttk.Separator(client_frame, orient="vertical")
-                sep.grid(row=0, column=(p_idx*2 + 1), sticky="ns", padx=5)
-                pet_vars = self.create_pet_column(client_frame, p_idx, (p_idx*2 + 2))
-                pet_vars_list_for_client.append(pet_vars)
-            self.pet_vars_list.append(pet_vars_list_for_client)
-            
-            client_frame.grid_forget() 
+
+    # (★★★) v3.9: 刪除 _create_char_ui_all 函式
+    # (此函式已不再需要, 其邏輯被移至 update_all_displays)
+    
 
     def create_person_column(self, parent_frame, grid_column, vars_dict):
         """(v2.7) 建立 "人物" 介面 (填充傳入的 vars_dict)"""
@@ -795,7 +796,7 @@ class DSAHelperApp(tk.Tk):
         self.update_all_displays()
 
     def update_all_displays(self):
-        """(v2.9) 核心: 更新「複選」視圖 (依據 Checkbox 狀態)"""
+        """(★★★) v3.9: 核心: 動態建立/銷毀 UI"""
         
         for i in range(MAX_CLIENTS):
             slot = self.client_data_slots[i]
@@ -804,12 +805,11 @@ class DSAHelperApp(tk.Tk):
             is_bound = slot["status"] == "已綁定"
             
             settings_ui = self.setting_widgets[i]
-            char_ui_frame = self.char_frames[i] 
-            person_vars = self.person_vars[i]
-            pet_vars_list = self.pet_vars_list[i]
+            
+            # (★★★) v3.9: 動態建立/銷毀 UI
             
             if is_selected and is_bound:
-                # --- 1. 更新「遊戲設置」 (水平) ---
+                # --- 1. 更新「遊戲設置」 (照舊, 使用 pack/pack_forget) ---
                 settings_ui["frame"].pack(side="left", fill="y", anchor="n", padx=5, pady=5) 
                 
                 settings_ui["frame"].config(text=slot.get("account_name", f"窗口 {i+1}"))
@@ -823,7 +823,40 @@ class DSAHelperApp(tk.Tk):
                 settings_ui["widgets"]["noclip"].config(state="normal" if slot["noclip_address"] else "disabled")
                 settings_ui["widgets"]["hide"].config(state="normal" if slot["hwnd"] else "disabled")
 
-                # --- 2. 更新「人寵資料」 (垂直) ---
+                # --- 2. 檢查「人寵資料」UI 是否需要建立 ---
+                if self.char_frames[i] is None:
+                    # --- 2a. 建立 UI ---
+                    self.log(f"窗口 {i+1}: 正在建立人寵 UI...")
+                    parent_frame = self.tab_frame_char.inner_frame
+                    
+                    client_frame = ttk.Labelframe(parent_frame, text=f"窗口 {i+1}", padding=5)
+                    
+                    # 預先設定最小寬度 (從 _create_char_ui_all 移來)
+                    for col_idx in range(0, 11, 2):
+                        client_frame.columnconfigure(col_idx, minsize=170)
+                    client_frame.rowconfigure(0, weight=1)
+                    
+                    person_vars_dict = {}
+                    self.create_person_column(client_frame, 0, person_vars_dict)
+                    
+                    pet_vars_list_for_client = []
+                    for p_idx in range(5):
+                        sep = ttk.Separator(client_frame, orient="vertical")
+                        sep.grid(row=0, column=(p_idx*2 + 1), sticky="ns", padx=5)
+                        pet_vars = self.create_pet_column(client_frame, p_idx, (p_idx*2 + 2))
+                        pet_vars_list_for_client.append(pet_vars)
+                    
+                    # 儲存
+                    self.char_frames[i] = client_frame
+                    self.person_vars[i] = person_vars_dict
+                    self.pet_vars_list[i] = pet_vars_list_for_client
+
+                # --- 2b. 顯示並更新 UI (無論是剛建立的還是已有的) ---
+                char_ui_frame = self.char_frames[i]
+                person_vars = self.person_vars[i]
+                pet_vars_list = self.pet_vars_list[i]
+
+                # (★★★) v3.9: 使用 grid 顯示
                 char_ui_frame.grid(row=i, column=0, sticky="ew", padx=5, pady=5) 
                 char_ui_frame.config(text=slot.get("account_name", f"窗口 {i+1}"))
                 
@@ -832,18 +865,21 @@ class DSAHelperApp(tk.Tk):
                 pet_caches = slot.get("pet_data_cache", [None] * 5)
                 for p_idx in range(5):
                     self._configure_pet_widgets(pet_caches[p_idx], pet_vars_list[p_idx], p_idx)
-                    
+
             else:
-                # 3. 如果未勾選, 隱藏
+                # --- 3. 未勾選: 隱藏 (Settings) 並 銷毀 (Char Info) ---
                 settings_ui["frame"].pack_forget()
-                char_ui_frame.grid_forget()
+
+                if self.char_frames[i] is not None:
+                    # (★★★) v3.9: 銷毀 UI 以釋放資源
+                    self.log(f"窗口 {i+1}: 正在銷毀人寵 UI...")
+                    self.char_frames[i].destroy()
+                    self.char_frames[i] = None
+                    self.person_vars[i] = None
+                    self.pet_vars_list[i] = None
         
         self.tab_frame_settings.inner_frame.event_generate("<Configure>")
         self.tab_frame_char.inner_frame.event_generate("<Configure>")
-        
-        # (★★★) v3.7 修正: 以下兩行被 *移除* 並 *移動* 到 UI 建立函式中
-        # self.tab_frame_char.bind_mouse_wheel(self.tab_frame_char.inner_frame)
-        # self.tab_frame_settings.bind_mouse_wheel(self.tab_frame_settings.inner_frame)
 
             
     # --- 狀態監控 (v2.5) ---
