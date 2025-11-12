@@ -179,7 +179,9 @@ class MemoryMonitorThread(threading.Thread):
             w = pm.read_int(base + CHAR_ELEM_WATER_OFFSET)
             f = pm.read_int(base + CHAR_ELEM_FIRE_OFFSET)
             wi = pm.read_int(base + CHAR_ELEM_WIND_OFFSET)
-            data["element"] = format_elements(e, w, f, wi) 
+            # (★★★) (修正 #2) 確保這兩行都存在
+            data["element_str"] = format_elements(e, w, f, wi)
+            data["element_raw"] = (e, w, f, wi)                 # <--- 這是顯示數字的關鍵
             data["vit"] = pm.read_int(base + CHAR_VIT_OFFSET)
             data["str"] = pm.read_int(base + CHAR_STR_OFFSET)
             data["sta"] = pm.read_int(base + CHAR_STA_OFFSET)
@@ -251,7 +253,8 @@ class MemoryMonitorThread(threading.Thread):
             w = pm.read_int(pet_base_addr + PET_ELEM_WATER_REL)
             f = pm.read_int(pet_base_addr + PET_ELEM_FIRE_REL)
             wi = pm.read_int(pet_base_addr + PET_ELEM_WIND_REL) 
-            pet_data["element"] = format_elements(e, w, f, wi) 
+            pet_data["element_str"] = format_elements(e, w, f, wi)
+            pet_data["element_raw"] = (e, w, f, wi)                 # <--- 這是顯示數字的關鍵
             
             return pet_data
             

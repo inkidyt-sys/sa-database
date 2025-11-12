@@ -1,5 +1,4 @@
-# app_ui.py
-# 負責建立所有的 tkinter UI 元件
+# app_ui.py (v4.3 - 單一畫布, 寬網格)
 
 import tkinter as tk
 from tkinter import ttk
@@ -8,12 +7,17 @@ from ui_components import ScrollableFrame
 from constants import MAX_CLIENTS, DEFAULT_FG_COLOR, ELEMENT_COLOR_MAP
 from utils import num_to_chinese
 
+# (★★★) (修正 #3) Canvas 基礎高度
+CANVAS_ROW_HEIGHT = 225 
+
+# --- 靜態 UI 建立函式 ---
+
 def create_main_widgets(app):
     """建立主視窗介面 (左右佈局)"""
     main_frame = ttk.Frame(app, padding=10)
     main_frame.pack(fill="both", expand=True)
 
-    # 左側框架 (綁定和列表)
+    # 左側框架
     left_frame = ttk.Frame(main_frame, width=app.scaled_left_panel_width, padding=(5,5,5,5), relief="groove")
     left_frame.pack(side="left", fill="y", padx=(0, 10))
     left_frame.pack_propagate(False)
@@ -22,26 +26,17 @@ def create_main_widgets(app):
     bind_button.pack(fill="x", pady=(5, 10), ipady=3)
 
     parent_bg = app.cget('background')
-
     for i in range(MAX_CLIENTS):
         checkbox = tk.Checkbutton(
-            left_frame,
-            text=f"窗口 {i+1}: 未綁定", 
+            left_frame, text=f"窗口 {i+1}: 未綁定", 
             variable=app.client_selection_vars[i],
-            onvalue=1, offvalue=0,
-            command=app.on_selection_change, 
-            state="disabled",
-            disabledforeground="grey", 
-            anchor="w",                
-            bg=parent_bg,              
-            selectcolor=parent_bg,     
-            padx=0                     
+            onvalue=1, offvalue=0, command=app.on_selection_change, 
+            state="disabled", disabledforeground="grey", anchor="w",                
+            bg=parent_bg, selectcolor=parent_bg, padx=0                     
         )
         checkbox.pack(anchor="w", pady=3)
-        
         checkbox.bind("<Button-3>", lambda e, idx=i: app.on_client_right_click_single(e, idx))
         checkbox.bind("<Double-Button-3>", lambda e, idx=i: app.on_client_right_click_double(e, idx))
-        
         app.client_checkboxes.append(checkbox)
 
     # 右側 Notebook
@@ -50,6 +45,9 @@ def create_main_widgets(app):
 
     app.notebook = ttk.Notebook(right_frame)
     app.notebook.pack(fill="both", expand=True)
+    
+    # (★★★) (修正 #3) 綁定頁籤切換事件
+    app.notebook.bind("<<NotebookTabChanged>>", app.on_tab_changed)
 
     tab_names = ["遊戲設置", "人寵資料", "道具列表", "戰鬥狀態", "聊天窗口"]
     for name in tab_names:
@@ -57,295 +55,278 @@ def create_main_widgets(app):
         app.notebook.add(tab_frame, text=name)
         app.tabs[name] = tab_frame
         
-    # 建立特定頁籤的內容
     create_settings_tab(app.tabs["遊戲設置"], app)
     create_character_tab(app.tabs["人寵資料"], app)
     
-    # 鎖定未完成的分頁
-    app.notebook.tab(2, state="disabled") # 道具列表
-    app.notebook.tab(3, state="disabled") # 戰鬥狀態
-    app.notebook.tab(4, state="disabled") # 聊天窗口
+    app.notebook.tab(2, state="disabled")
+    app.notebook.tab(3, state="disabled")
+    app.notebook.tab(4, state="disabled")
 
 
 def create_settings_tab(tab_frame, app):
     """建立「遊戲設置」頁籤"""
-    
-    # 建立全局設定 (刷新頻率)
     global_settings_frame = ttk.Frame(tab_frame)
     global_settings_frame.pack(fill="x", pady=(0, 5))
 
     ttk.Label(global_settings_frame, text="刷新頻率:").pack(side="left", padx=(5, 5))
-    
     refresh_options = ['0.5s', '1s', '3s', '5s', '10s', '60s', '不刷新']
     app.refresh_rate_combo = ttk.Combobox(
-        global_settings_frame,
-        textvariable=app.refresh_rate_var,
-        values=refresh_options,
-        state="readonly",
-        width=10
+        global_settings_frame, textvariable=app.refresh_rate_var,
+        values=refresh_options, state="readonly", width=10
     )
-    app.refresh_rate_var.set('3s') # 預設值
+    app.refresh_rate_var.set('3s') 
     app.refresh_rate_combo.pack(side="left")
     app.refresh_rate_combo.bind("<<ComboboxSelected>>", app.on_refresh_rate_change)
 
     ttk.Separator(tab_frame, orient="horizontal").pack(fill="x", pady=(0, 10))
-    
-    # 建立客戶端專用設定
     app.tab_frame_settings = ScrollableFrame(tab_frame, orient="horizontal") 
     app.tab_frame_settings.pack(fill="both", expand=True) 
 
     app.setting_widgets = [] 
     for i in range(MAX_CLIENTS):
         frame = ttk.Labelframe(app.tab_frame_settings.inner_frame, text=f"窗口 {i+1}", padding=5)
-        # 注意: 這裡*不* pack() - 它將由 update_all_displays 動態 pack/pack_forget
-        
         (vars_dict, widgets_dict) = _create_settings_ui_frame(
-            frame, 
-            client_index=i,
-            app_instance=app # 傳遞 app 實例以綁定 command
+            frame, client_index=i, app_instance=app 
         )
-        app.setting_widgets.append({
-            "frame": frame,
-            "vars": vars_dict,
-            "widgets": widgets_dict
-        })
-
+        app.setting_widgets.append({"frame": frame, "vars": vars_dict, "widgets": widgets_dict})
 
 def _create_settings_ui_frame(parent, client_index, app_instance):
     """輔助函式, 建立一組遊戲設置 UI"""
     setting_vars = {
-        "game_speed": tk.IntVar(),
-        "fast_walk": tk.IntVar(),
-        "no_clip": tk.IntVar(),
-        "hide_sa": tk.IntVar()
+        "game_speed": tk.IntVar(), "fast_walk": tk.IntVar(),
+        "no_clip": tk.IntVar(), "hide_sa": tk.IntVar()
     }
-    
-    # 綁定到 app_instance 上的方法
     cmd_speed = lambda idx=client_index: app_instance.on_toggle_speed(idx)
     cmd_walk  = lambda idx=client_index: app_instance.on_toggle_walk(idx)
     cmd_noclip= lambda idx=client_index: app_instance.on_toggle_noclip(idx)
     cmd_hide  = lambda idx=client_index: app_instance.on_toggle_hide(idx)
     
-    cb_speed = ttk.Checkbutton(parent, text="遊戲加速", 
-                               variable=setting_vars["game_speed"],
-                               command=cmd_speed)
-    cb_walk = ttk.Checkbutton(parent, text="快速行走", 
-                              variable=setting_vars["fast_walk"],
-                              command=cmd_walk)
-    cb_noclip = ttk.Checkbutton(parent, text="穿牆行走", 
-                                variable=setting_vars["no_clip"],
-                                command=cmd_noclip)
-    cb_hide = ttk.Checkbutton(parent, text="隱藏石器", 
-                              variable=setting_vars["hide_sa"],
-                              command=cmd_hide)
+    cb_speed = ttk.Checkbutton(parent, text="遊戲加速", variable=setting_vars["game_speed"], command=cmd_speed)
+    cb_walk = ttk.Checkbutton(parent, text="快速行走", variable=setting_vars["fast_walk"], command=cmd_walk)
+    cb_noclip = ttk.Checkbutton(parent, text="穿牆行走", variable=setting_vars["no_clip"], command=cmd_noclip)
+    cb_hide = ttk.Checkbutton(parent, text="隱藏石器", variable=setting_vars["hide_sa"], command=cmd_hide)
                               
     cb_speed.pack(anchor="w", pady=3)
     cb_walk.pack(anchor="w", pady=3)
     cb_noclip.pack(anchor="w", pady=3)
     cb_hide.pack(anchor="w", pady=3)
     
-    widgets = {
-        "speed": cb_speed, "walk": cb_walk, 
-        "noclip": cb_noclip, "hide": cb_hide
-    }
+    widgets = {"speed": cb_speed, "walk": cb_walk, "noclip": cb_noclip, "hide": cb_hide}
     return (setting_vars, widgets)
 
 
 def create_character_tab(tab_frame, app):
-    """建立「人寵資料」頁籤 (v3.9 動態邏輯)"""
+    """建立「人寵資料」頁籤 (Canvas UI 將動態建立)"""
     app.tab_frame_char = ScrollableFrame(tab_frame, orient="vertical") 
     app.tab_frame_char.pack(fill="both", expand=True) 
-    
-    # 確保 inner_frame 會隨 grid 縮放
     app.tab_frame_char.inner_frame.columnconfigure(0, weight=1)
     
-    # UI 將在 update_all_displays 中被動態建立
+# --- (★★★) (修正 #1) 返回「單一畫布」方案 ---
 
-
-def create_person_column(parent_frame, grid_column, vars_dict):
-    """建立 "人物" 介面 (填充傳入的 vars_dict)"""
-    frame = ttk.Frame(parent_frame, padding=(5, 2))
-    frame.grid(row=0, column=grid_column, sticky="nsw", padx=(5,0))
+def create_client_info_canvas(parent_labelframe, app_instance):
+    """
+    (★★★) (修正 #1)
+    建立單一的 Canvas，並在上面繪製所有文字物件。
+    所有 6 欄都基於「人物」的 4 欄位寬網格。
+    """
     
-    vars_dict.update({
-        "name": None, "nickname": None, "lv": None,
-        "hp": None, "mp": None, "rebirth": None, "atk": None,
-        "def": None, "agi": None, "charm": None, 
-        "element_frame": None, 
-        "vit": None, "str": None, "sta": None, "spd": None,
-        "parent_frame": frame,
-        "last_element": None # (v3.7) 屬性快取
-    })
+    # (★★★) (修正 #1) 依人物欄位為基準的寬度 (未縮放)
+    base_col_width = 190 
     
-    r = 0 
-    vars_dict["name"] = ttk.Label(frame, text="人物", font=("Arial", 9, "bold"))
-    vars_dict["name"].grid(row=r, column=0, columnspan=4, sticky="w", pady=0)
+    col_width = int(base_col_width * app_instance.scaling_factor)
+    x_padding = 10
+    start_x = 10
     
-    r += 1
-    vars_dict["nickname"] = ttk.Label(frame, text="稱號")
-    vars_dict["nickname"].grid(row=r, column=0, columnspan=4, sticky="w", pady=0)
-    
-    r += 1
-    ttk.Label(frame, text="LV:").grid(row=r, column=0, sticky="w", pady=0)
-    vars_dict["lv"] = ttk.Label(frame, text="--")
-    vars_dict["lv"].grid(row=r, column=1, sticky="w")
-    
-    vars_dict["rebirth"] = ttk.Label(frame, text="--") 
-    vars_dict["rebirth"].grid(row=r, column=2, columnspan=2, sticky="w", padx=(5,0))
-    
-    r += 1
-    ttk.Label(frame, text="HP:").grid(row=r, column=0, sticky="w", pady=0)
-    vars_dict["hp"] = ttk.Label(frame, text="--/--")
-    vars_dict["hp"].grid(row=r, column=1, columnspan=3, sticky="w")
-    
-    r += 1
-    ttk.Label(frame, text="MP:").grid(row=r, column=0, sticky="w", pady=0)
-    vars_dict["mp"] = ttk.Label(frame, text="--/--")
-    vars_dict["mp"].grid(row=r, column=1, columnspan=3, sticky="w")
-    
-    r += 1
-    ttk.Label(frame, text="攻擊:").grid(row=r, column=0, sticky="w", pady=0)
-    vars_dict["atk"] = ttk.Label(frame, text="--")
-    vars_dict["atk"].grid(row=r, column=1, sticky="w")
-    ttk.Label(frame, text="防禦:").grid(row=r, column=2, sticky="w", padx=(5,0))
-    vars_dict["def"] = ttk.Label(frame, text="--")
-    vars_dict["def"].grid(row=r, column=3, sticky="w")
-    
-    r += 1
-    ttk.Label(frame, text="敏捷:").grid(row=r, column=0, sticky="w", pady=0)
-    vars_dict["agi"] = ttk.Label(frame, text="--")
-    vars_dict["agi"].grid(row=r, column=1, sticky="w")
-    ttk.Label(frame, text="魅力:").grid(row=r, column=2, sticky="w", padx=(5,0))
-    vars_dict["charm"] = ttk.Label(frame, text="--") 
-    vars_dict["charm"].grid(row=r, column=3, sticky="w")
-    
-    r += 1
-    ttk.Label(frame, text="屬性:").grid(row=r, column=0, sticky="w", pady=0)
-    vars_dict["element_frame"] = ttk.Frame(frame) 
-    vars_dict["element_frame"].grid(row=r, column=1, columnspan=3, sticky="w")
-    
-    r += 1
-    ttk.Separator(frame, orient="horizontal").grid(row=r, column=0, columnspan=5, sticky="ew", pady=3)
-    
-    r += 1
-    ttk.Label(frame, text="體力:").grid(row=r, column=0, sticky="w", pady=0)
-    vars_dict["vit"] = ttk.Label(frame, text="--")
-    vars_dict["vit"].grid(row=r, column=1, sticky="w")
-    ttk.Label(frame, text="腕力:").grid(row=r, column=2, sticky="w", padx=(5,0))
-    vars_dict["str"] = ttk.Label(frame, text="--")
-    vars_dict["str"].grid(row=r, column=3, sticky="w")
-    
-    r += 1
-    ttk.Label(frame, text="耐力:").grid(row=r, column=0, sticky="w", pady=0)
-    vars_dict["sta"] = ttk.Label(frame, text="--")
-    vars_dict["sta"].grid(row=r, column=1, sticky="w")
-    ttk.Label(frame, text="速度:").grid(row=r, column=2, sticky="w", padx=(5,0))
-    vars_dict["spd"] = ttk.Label(frame, text="--")
-    vars_dict["spd"].grid(row=r, column=3, sticky="w")
-        
-def create_pet_column(parent_frame, pet_index, grid_column):
-    """建立 "寵物" 介面 (建立並 *返回* pet_vars)"""
-    frame = ttk.Frame(parent_frame, padding=(5, 2))
-    frame.grid(row=0, column=grid_column, sticky="nsw", padx=(5,0))
-    
-    pet_vars = {
-        "name": None, "nickname": None, "lv": None,
-        "exp": None, "lack": None, "hp": None, "atk": None,
-        "def": None, "agi": None, 
-        "loyal": None, 
-        "element_frame": None, 
-        "rebirth": None,
-        "parent_frame": frame,
-        "last_element": None # (v3.7) 屬性快取
-    }
-    
-    r = 0 
-    pet_vars["name"] = ttk.Label(frame, text=f"寵物{num_to_chinese(pet_index + 1)}", font=("Arial", 9, "bold"))
-    pet_vars["name"].grid(row=r, column=0, columnspan=4, sticky="w", pady=0)
-    
-    r += 1
-    pet_vars["nickname"] = ttk.Label(frame, text="")
-    pet_vars["nickname"].grid(row=r, column=0, columnspan=4, sticky="w", pady=0)
-    
-    r += 1
-    ttk.Label(frame, text="LV:").grid(row=r, column=0, sticky="w", pady=0)
-    pet_vars["lv"] = ttk.Label(frame, text="--")
-    pet_vars["lv"].grid(row=r, column=1, sticky="w")
-    pet_vars["rebirth"] = ttk.Label(frame, text="--") 
-    pet_vars["rebirth"].grid(row=r, column=2, columnspan=2, sticky="w", padx=(5,0))
-    
-    r += 1
-    ttk.Label(frame, text="經驗:").grid(row=r, column=0, sticky="w", pady=0)
-    pet_vars["exp"] = ttk.Label(frame, text="--")
-    pet_vars["exp"].grid(row=r, column=1, columnspan=3, sticky="w")
-    
-    r += 1
-    ttk.Label(frame, text="還欠:").grid(row=r, column=0, sticky="w", pady=0)
-    pet_vars["lack"] = ttk.Label(frame, text="--")
-    pet_vars["lack"].grid(row=r, column=1, columnspan=3, sticky="w")
-    
-    r += 1
-    ttk.Label(frame, text="HP:").grid(row=r, column=0, sticky="w", pady=0)
-    pet_vars["hp"] = ttk.Label(frame, text="--/--")
-    pet_vars["hp"].grid(row=r, column=1, columnspan=3, sticky="w")
-    
-    r += 1
-    ttk.Label(frame, text="攻擊:").grid(row=r, column=0, sticky="w", pady=0)
-    pet_vars["atk"] = ttk.Label(frame, text="--")
-    pet_vars["atk"].grid(row=r, column=1, columnspan=3, sticky="w")
-    
-    r += 1
-    ttk.Label(frame, text="防禦:").grid(row=r, column=0, sticky="w", pady=0)
-    pet_vars["def"] = ttk.Label(frame, text="--")
-    pet_vars["def"].grid(row=r, column=1, columnspan=3, sticky="w")
-    
-    r += 1
-    ttk.Label(frame, text="敏捷:").grid(row=r, column=0, sticky="w", pady=0)
-    pet_vars["agi"] = ttk.Label(frame, text="--")
-    pet_vars["agi"].grid(row=r, column=1, columnspan=3, sticky="w")
-    
-    r += 1
-    ttk.Label(frame, text="屬性:").grid(row=r, column=0, sticky="w", pady=0)
-    pet_vars["element_frame"] = ttk.Frame(frame) 
-    pet_vars["element_frame"].grid(row=r, column=1, columnspan=3, sticky="w")
-    
-    r += 1
-    ttk.Label(frame, text="忠誠:").grid(row=r, column=0, sticky="w", pady=0)
-    pet_vars["loyal"] = ttk.Label(frame, text="--") 
-    pet_vars["loyal"].grid(row=r, column=1, columnspan=3, sticky="w")
-
-    return pet_vars 
-
-def update_element_display(frame_widget, element_string, app_bg_color):
-    """(Refactored) 動態更新屬性標籤 (支援顏色)"""
-    for widget in frame_widget.winfo_children():
-        widget.destroy()
+    # (★★★) (修正 #1) 總寬度 = 6 * 欄寬 + 5 * 間距 + 2 * 邊距
+    canvas_width = (col_width * 6) + (x_padding * 5) + (start_x * 2)
+    canvas_height = int(CANVAS_ROW_HEIGHT * app_instance.scaling_factor)
     
     try:
-        bg_color = frame_widget.cget("background")
+        bg_color = parent_labelframe.cget("background")
     except:
-        bg_color = app_bg_color # 備用
+        bg_color = app_instance.cget("background")
 
-    if not element_string or element_string == "無":
-        tk.Label(
-            frame_widget, 
-            text="無", 
-            fg=DEFAULT_FG_COLOR, 
-            font=("Arial", 9), 
-            bg=bg_color
-        ).pack(side="left", padx=(0, 4))
-        return
+    canvas = tk.Canvas(
+        parent_labelframe, 
+        width=canvas_width, 
+        height=canvas_height, 
+        bg=bg_color,
+        highlightthickness=0 
+    )
+    canvas.pack(anchor="w", padx=5, pady=5)
+    
+    all_vars_list = []
+    
+    # --- 1. 繪製人物 (第 0 欄) ---
+    x_offset = start_x
+    person_vars = _draw_person_canvas_items(canvas, x_offset)
+    all_vars_list.append(person_vars)
 
-    parts = element_string.split(" ")
-    for part in parts:
-        if not part: continue
-        elem_char = part[0] 
-        color = ELEMENT_COLOR_MAP.get(elem_char, DEFAULT_FG_COLOR)
+    # --- 2. 繪製 5 隻寵物 (第 1-5 欄) ---
+    for i in range(5):
+        # (★★★) (修正 #1) 嚴格等寬
+        x_offset = start_x + (col_width + x_padding) * (i + 1)
         
-        tk.Label(
-            frame_widget, 
-            text=part, 
-            fg=color, 
-            font=("Arial", 9), 
-            bg=bg_color
-        ).pack(side="left", padx=(0, 4))
+        canvas.create_line(
+            x_offset - (x_padding // 2) - 1, 10, 
+            x_offset - (x_padding // 2) - 1, canvas_height - 10, 
+            fill="#CCCCCC"
+        )
+        
+        pet_vars = _draw_pet_canvas_items(canvas, x_offset, i)
+        all_vars_list.append(pet_vars)
+        
+    return canvas, all_vars_list
+
+
+def _draw_person_canvas_items(canvas, x):
+    """(★★★) (修正 #1) 繪製人物欄位 (使用 4 欄位寬網格)"""
+    
+    vars_dict = {} 
+    y = 15
+    y_step = 19 
+    
+    # (★★★) (修正 #1) 
+    # 這是能容納 999999999 數值的 4 欄位網格
+    x_label_1 = x
+    x_value_1 = x + 35
+    x_label_2 = x + 105 # 為 value_1 (999...) 提供 70px 空間
+    x_value_2 = x + 140 # 為 label_2 (防禦:) 提供 35px 空間
+    
+    vars_dict["name"] = canvas.create_text(x_label_1, y, text="人物", font=("Arial", 9, "bold"), anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+    
+    vars_dict["nickname"] = canvas.create_text(x_label_1, y, text="稱號", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+
+    canvas.create_text(x_label_1, y, text="LV:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["lv"] = canvas.create_text(x_value_1, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["rebirth"] = canvas.create_text(x_label_2, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+
+    canvas.create_text(x_label_1, y, text="HP:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["hp"] = canvas.create_text(x_value_1, y, text="--/--", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+    canvas.create_text(x_label_1, y, text="MP:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["mp"] = canvas.create_text(x_value_1, y, text="--/--", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+
+    canvas.create_text(x_label_1, y, text="攻擊:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["atk"] = canvas.create_text(x_value_1, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    canvas.create_text(x_label_2, y, text="防禦:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["def"] = canvas.create_text(x_value_2, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+    
+    canvas.create_text(x_label_1, y, text="敏捷:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["agi"] = canvas.create_text(x_value_1, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    canvas.create_text(x_label_2, y, text="魅力:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["charm"] = canvas.create_text(x_value_2, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+    
+    canvas.create_text(x_label_1, y, text="屬性:", anchor="w", fill=DEFAULT_FG_COLOR)
+    elem_x = x_value_1
+    elem_step = 35 # 加寬屬性間距
+    
+    canvas.create_text(elem_x, y, text="地", anchor="w", fill=ELEMENT_COLOR_MAP["地"])
+    vars_dict["elem_e_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["地"])
+    elem_x += elem_step
+    
+    canvas.create_text(elem_x, y, text="水", anchor="w", fill=ELEMENT_COLOR_MAP["水"])
+    vars_dict["elem_w_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["水"])
+    elem_x += elem_step
+
+    canvas.create_text(elem_x, y, text="火", anchor="w", fill=ELEMENT_COLOR_MAP["火"])
+    vars_dict["elem_f_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["火"])
+    elem_x += elem_step
+    
+    canvas.create_text(elem_x, y, text="風", anchor="w", fill=ELEMENT_COLOR_MAP["風"])
+    vars_dict["elem_wi_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["風"])
+    y += (y_step - 4)
+
+    canvas.create_line(x_label_1, y, x_value_2 + 45, y, fill="#DDDDDD") 
+    y += (y_step - 8)
+
+    canvas.create_text(x_label_1, y, text="體力:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["vit"] = canvas.create_text(x_value_1, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    canvas.create_text(x_label_2, y, text="腕力:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["str"] = canvas.create_text(x_value_2, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+    
+    canvas.create_text(x_label_1, y, text="耐力:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["sta"] = canvas.create_text(x_value_1, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    canvas.create_text(x_label_2, y, text="速度:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["spd"] = canvas.create_text(x_value_2, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    
+    return vars_dict
+    
+
+def _draw_pet_canvas_items(canvas, x, pet_index):
+    """(★★★) (修正 #1) 繪製寵物欄位 (也使用 4 欄位寬網格)"""
+    
+    vars_dict = {} 
+    y = 15
+    y_step = 19 
+    
+    # (★★★) (修正 #1) 
+    # 寵物也使用相同的 4 欄位網格，以確保等寬和對齊
+    x_label_1 = x
+    x_value_1 = x + 35
+    x_label_2 = x + 105 # 轉生專用
+    
+    vars_dict["name"] = canvas.create_text(x_label_1, y, text=f"寵物{num_to_chinese(pet_index + 1)}", font=("Arial", 9, "bold"), anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+    
+    vars_dict["nickname"] = canvas.create_text(x_label_1, y, text="", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+
+    canvas.create_text(x_label_1, y, text="LV:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["lv"] = canvas.create_text(x_value_1, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["rebirth"] = canvas.create_text(x_label_2, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+
+    canvas.create_text(x_label_1, y, text="經驗:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["exp"] = canvas.create_text(x_value_1, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+    canvas.create_text(x_label_1, y, text="還欠:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["lack"] = canvas.create_text(x_value_1, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+
+    canvas.create_text(x_label_1, y, text="HP:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["hp"] = canvas.create_text(x_value_1, y, text="--/--", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+    
+    canvas.create_text(x_label_1, y, text="攻擊:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["atk"] = canvas.create_text(x_value_1, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+    canvas.create_text(x_label_1, y, text="防禦:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["def"] = canvas.create_text(x_value_1, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+    canvas.create_text(x_label_1, y, text="敏捷:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["agi"] = canvas.create_text(x_value_1, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    y += y_step
+
+    # (★★★) (修正 #1) 寵物的屬性也使用更寬的佈局
+    canvas.create_text(x_label_1, y, text="屬性:", anchor="w", fill=DEFAULT_FG_COLOR)
+    elem_x = x_value_1
+    elem_step = 35 # 與人物對齊
+    
+    canvas.create_text(elem_x, y, text="地", anchor="w", fill=ELEMENT_COLOR_MAP["地"])
+    vars_dict["elem_e_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["地"])
+    elem_x += elem_step
+    
+    canvas.create_text(elem_x, y, text="水", anchor="w", fill=ELEMENT_COLOR_MAP["水"])
+    vars_dict["elem_w_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["水"])
+    elem_x += elem_step
+
+    canvas.create_text(elem_x, y, text="火", anchor="w", fill=ELEMENT_COLOR_MAP["火"])
+    vars_dict["elem_f_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["火"])
+    elem_x += elem_step
+    
+    canvas.create_text(elem_x, y, text="風", anchor="w", fill=ELEMENT_COLOR_MAP["風"])
+    vars_dict["elem_wi_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["風"])
+    y += y_step
+
+    canvas.create_text(x_label_1, y, text="忠誠:", anchor="w", fill=DEFAULT_FG_COLOR)
+    vars_dict["loyal"] = canvas.create_text(x_value_1, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
+    
+    return vars_dict

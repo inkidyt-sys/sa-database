@@ -1,10 +1,4 @@
-# main.py
-# 主應用程式入口點 (DSAHelperApp)
-# 負責:
-# 1. Tkinter 視窗和 UI 狀態管理
-# 2. 協調 Worker 執行緒 (啟動、停止、命令)
-# 3. 處理來自 Worker 的資料佇列 (Queue)
-# 4. 執行所有 *寫入* 操作 (Pymem writes) 和 WinAPI (ctypes)
+# main.py (v4.3 - 單一畫布, 動態高度, 右鍵對調)
 
 import tkinter as tk
 from tkinter import ttk
@@ -12,8 +6,8 @@ import ctypes
 import os
 import sys
 import time 
-import queue       # (Refactored) 新增
-import threading   # (Refactored) 新增
+import queue
+import threading
 
 import pymem
 import pymem.pattern
@@ -24,16 +18,13 @@ except ImportError:
     print("缺少 ctypes.wintypes 模組")
     sys.exit(1)
 
-# --- (Refactored) 從拆分的檔案中導入 ---
 from constants import *
 from ui_components import ScrollableFrame
 from utils import is_admin
-import app_ui # 導入整個 UI 模組
+import app_ui 
 from memory_worker import MemoryMonitorThread
-# --------------------------------------
 
-
-# --- DPI 感知設定 (必須在 tkinter 之前) ---
+# --- DPI 感知設定 ---
 try:
     ctypes.windll.shcore.SetProcessDpiAwareness(1) 
 except (AttributeError, OSError):
@@ -48,56 +39,53 @@ class DSAHelperApp(tk.Tk):
     def __init__(self):
         super().__init__()
         
-        # (v3.10) 動態 DPI 縮放
         try:
             self.scaling_factor = self.tk.call('tk', 'scaling')
         except Exception:
             self.scaling_factor = 1.0 
 
-        BASE_WIDTH = 890  
-        BASE_HEIGHT = 210 
+        BASE_WIDTH = 1250 # (★★★) (修正 #1) 增加基礎寬度以容納 6 個寬欄位
+        BASE_HEIGHT = 210
         BASE_LEFT_PANEL_WIDTH = 114 
-        BASE_CHAR_COLUMN_WIDTH = 114
 
         scaled_width = int(BASE_WIDTH * self.scaling_factor)
         scaled_height = int(BASE_HEIGHT * self.scaling_factor)
         
         self.scaled_left_panel_width = int(BASE_LEFT_PANEL_WIDTH * self.scaling_factor)
-        self.scaled_char_column_width = int(BASE_CHAR_COLUMN_WIDTH * self.scaling_factor)
-
-        self.title("DSA新端輔助程式 v4.00 (多執行緒版) by 石器推廣大使 陳財佑")
         
-        try:
-            self.iconbitmap("icon.ico")
-        except tk.TclError:
-            self.log("錯誤: 找不到 icon.ico 檔案。")
+        # (★★★) (修正 #3) 動態高度變數
+        self.current_base_width = scaled_width
+        self.base_window_height = scaled_height 
+        self.non_content_height = int(180 * self.scaling_factor) # 估算: 標題/頁籤/日誌等非內容高度
+        self.height_per_client_row = int((app_ui.CANVAS_ROW_HEIGHT + 20) * self.scaling_factor) # 每個客戶端 UI 的高度
+
+        self.title("DSA新端輔助程式 v4.3 (寬網格/動態高度) by 石器推廣大使 陳財佑")
+        
+        try: self.iconbitmap("icon.ico")
+        except tk.TclError: self.log("錯誤: 找不到 icon.ico 檔案。")
         
         self.geometry(f"{scaled_width}x{scaled_height}") 
-        self.resizable(False, True) 
+        self.resizable(False, True) # 允許動態高度
 
-        # (Refactored) 儲存 UI 元件的引用
         self.notebook = None
         self.tabs = {} 
         self.tab_frame_settings = None
         self.tab_frame_char = None
         self.client_checkboxes = [] 
         self.refresh_rate_combo = None
-        self.setting_widgets = []   
-        self.person_vars = [None] * MAX_CLIENTS       
-        self.pet_vars_list = [None] * MAX_CLIENTS     
-        self.char_frames = [None] * MAX_CLIENTS  
+        self.setting_widgets = []
         
-        # 狀態變數
+        # (★★★) (修正 #1) 返回「單一畫布」的 UI 引用
+        # 結構: [{"frame": ttk.Labelframe, "canvas": tk.Canvas, "vars_list": [dict, dict, ...]}, None, ...]
+        self.client_canvas_ui = [None] * MAX_CLIENTS
+        
         self.client_selection_vars = [tk.IntVar() for _ in range(MAX_CLIENTS)]
         self.refresh_rate_var = tk.StringVar()
         
-        # (Refactored) client_data_slots 成為 "唯一真相來源 (Single Source of Truth)"
-        # 它儲存句柄、基址和 *最新快取的資料*
         self.client_data_slots = [self.create_empty_slot_data() for _ in range(MAX_CLIENTS)]
         
-        # (Refactored) 執行緒 和 佇列
-        self.data_queue = queue.Queue()    # Worker -> UI
-        self.command_queue = queue.Queue() # UI -> Worker
+        self.data_queue = queue.Queue()
+        self.command_queue = queue.Queue()
         self.worker_thread = None
         
         if not is_admin():
@@ -106,32 +94,21 @@ class DSAHelperApp(tk.Tk):
                              font=("Arial", 12), fg="red", padx=50, pady=50)
             label.pack()
         else:
-            # (Refactored) UI 建立被移交給 app_ui 模組
             app_ui.create_main_widgets(self)
-            
             self.protocol("WM_DELETE_WINDOW", self.on_closing)
             self.log("介面初始化完成。請點擊 '綁定石器'。")
-            
-            # (Refactored) 啟動 Worker 執行緒
             self.start_worker_thread()
-            
-            # (Refactored) 啟動 UI 佇列檢查迴圈
             self.check_data_queue()
+            
+            # (★★★) (修正 #3) 首次調整高度
+            self.adjust_window_height() 
 
     def create_empty_slot_data(self):
-        """(v3.5) 建立一個空的資料槽"""
         return {
             "pid": None, "hwnd": None, "status": "未綁定", 
-            "pm_handle": None, # (Main Thread) Pymem 句柄 (用於 *寫入*)
-            "module_base": None, 
-            
-            # (Refactored) 以下是 Worker 執行緒會更新的 "快取"
-            "game_state": "unbound",
-            "account_name": "", 
-            "char_data_cache": None, 
-            "pet_data_cache": [None] * 5, 
-            
-            # 補丁狀態
+            "pm_handle": None, "module_base": None, 
+            "game_state": "unbound", "account_name": "", 
+            "char_data_cache": None, "pet_data_cache": [None] * 5, 
             "walk_address": None, "walk_original_byte": None, "walk_is_patched": False,
             "speed_address_1": None, "speed_address_2": None, "speed_original_bytes_1": None, 
             "speed_original_bytes_2": None, "speed_is_patched": False,
@@ -140,65 +117,81 @@ class DSAHelperApp(tk.Tk):
         }
 
     def log(self, message):
-        """(Refactored) 確保 log 總是在主執行緒中列印"""
         print(f"[Main] {message}") 
 
-    # --- (Refactored) 執行緒 & 佇列管理 ---
+    # --- (★★★) (修正 #3) 動態高度函式 ---
+    
+    def on_tab_changed(self, event=None):
+        """(★★★) (修正 #3) 頁籤切換時，調整高度"""
+        self.adjust_window_height()
 
+    def adjust_window_height(self):
+        """(★★★) (修正 #3) 根據當前頁籤和選中數量，動態調整視窗高度"""
+        try:
+            current_tab_text = self.notebook.tab(self.notebook.select(), "text")
+        except Exception:
+            current_tab_text = ""
+        
+        if current_tab_text != "人寵資料":
+            # 不在人寵頁籤，使用基礎高度
+            if self.winfo_height() != self.base_window_height:
+                self.geometry(f"{self.current_base_width}x{self.base_window_height}")
+            return
+        
+        # 在人寵頁籤，計算選中數量
+        selected_count = 0
+        for i in range(MAX_CLIENTS):
+            if self.client_selection_vars[i].get() == 1 and self.client_data_slots[i]["status"] == "已綁定":
+                selected_count += 1
+        
+        if selected_count == 0:
+            new_height = self.base_window_height
+        else:
+            content_height = selected_count * self.height_per_client_row
+            new_height = self.non_content_height + content_height
+            
+            # 限制最大/最小高度
+            max_height = self.winfo_screenheight() - 50
+            new_height = max(self.base_window_height, min(new_height, max_height))
+        
+        if self.winfo_height() != new_height:
+            self.geometry(f"{self.current_base_width}x{new_height}")
+
+    # --- 執行緒 & 佇列管理 ---
     def start_worker_thread(self):
-        """啟動記憶體監控執行緒"""
         if self.worker_thread is not None and self.worker_thread.is_alive():
             self.log("Worker 執行緒已在執行中。")
             return
-            
         self.log("正在啟動 Worker 執行緒...")
         self.worker_thread = MemoryMonitorThread(
-            self.data_queue,
-            self.command_queue,
-            self.client_data_slots # (Refactored) 傳遞對 slot 列表的 *引用*
+            self.data_queue, self.command_queue, self.client_data_slots 
         )
         self.worker_thread.start()
-        # 傳送初始刷新率
-        self.on_refresh_rate_change()
+        self.on_refresh_rate_change() 
 
     def check_data_queue(self):
-        """
-        (Main Thread) 
-        UI 迴圈，檢查來自 Worker 執行緒的資料。
-        這是 *唯一* 應該更新 UI 的地方。
-        """
         try:
-            # 獲取來自 Worker 的 *整包* 最新資料
             full_data_package = self.data_queue.get_nowait()
-            
             data_updated = False
             
-            # (Refactored) 將最新資料更新到 "唯一真相來源" (self.client_data_slots)
             for i in range(MAX_CLIENTS):
                 new_data = full_data_package[i]
                 slot = self.client_data_slots[i]
                 
-                # (Refactored) Worker 報告句柄已失效
                 if new_data["status"] == "已失效" and slot["status"] == "已綁定":
                     self.log(f"窗口 {i+1} (PID {slot['pid']}) 句柄已失效，正在清理...")
                     try:
-                        if slot["pm_handle"]:
-                            slot["pm_handle"].close()
+                        if slot["pm_handle"]: slot["pm_handle"].close()
                     except Exception as e:
                         self.log(f"  > 關閉失效句柄時出錯: {e}")
-                    
-                    # 重置 slot
                     self.client_data_slots[i] = self.create_empty_slot_data()
                     self.client_selection_vars[i].set(0)
                     data_updated = True
                 
-                # 正常更新快取資料
                 elif slot["status"] == "已綁定":
-                    # 檢查資料是否有實際變化
                     if (slot["account_name"] != new_data["account_name"] or
                         slot["char_data_cache"] != new_data["char_data_cache"] or
                         slot["pet_data_cache"] != new_data["pet_data_cache"]):
-                        
                         data_updated = True
                         
                     slot["account_name"] = new_data["account_name"]
@@ -206,25 +199,18 @@ class DSAHelperApp(tk.Tk):
                     slot["char_data_cache"] = new_data["char_data_cache"]
                     slot["pet_data_cache"] = new_data["pet_data_cache"]
             
-            # (Refactored) 僅在資料實際變更時才觸發成本高昂的 UI 更新
             if data_updated:
-                self.update_client_list_ui() # 更新左側列表
-                self.update_all_displays()   # 更新右側頁籤
+                self.update_client_list_ui() 
+                self.update_all_displays()   
 
         except queue.Empty:
-            pass # 佇列中沒有資料，很正常
+            pass 
         
-        # (Refactored) 設置下一次檢查 (例如 100ms)
-        # 這使 UI 保持響應，無論 Worker 的刷新率多慢
         self.after(100, self.check_data_queue)
 
 
     # --- 核心功能：綁定與掃描 (Main Thread) ---
-    # (Refactored) 綁定和掃描 (一次性 I/O) 保留在主執行緒中
-    # 點擊按鈕時的短暫卡頓是可以接受的
-
     def find_game_windows(self):
-        """(Main Thread) 查找遊戲窗口"""
         found_windows = []
         EnumWindows = ctypes.windll.user32.EnumWindows
         EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.wintypes.BOOL,
@@ -253,111 +239,82 @@ class DSAHelperApp(tk.Tk):
         return found_windows
 
     def on_bind_click(self):
-        """(Main Thread) v3.6 綁定邏輯 (幾乎不變)"""
         self.log(f"--- 開始檢查綁定並搜尋新窗口 ---")
-        
         current_pids = set()
         
-        # 1. 檢查現有綁定是否仍然有效 (或是否被 Worker 標記為失效)
         for i in range(MAX_CLIENTS):
             slot = self.client_data_slots[i]
-            
-            # (Refactored) 檢查 status == '已失效'
             if slot["status"] == "已失效":
                 self.log(f"窗口 {i+1} (PID {slot['pid']}) 已被標記為失效, 清理...")
-                # Worker 執行緒可能已經關閉了句柄，但再次嘗試關閉是安全的
                 try:
                     if slot["pm_handle"]: slot["pm_handle"].close()
                 except Exception: pass
-                
                 self.client_data_slots[i] = self.create_empty_slot_data()
                 self.client_selection_vars[i].set(0)
                 self.update_client_list_ui(i)
                 continue
 
             if slot["pid"] and slot["pm_handle"] and slot["module_base"]:
-                # (Refactored) 不再需要 read 測試，依賴 Worker 的 "已失效" 狀態
                 current_pids.add(slot["pid"])
                 self.log(f"窗口 {i+1} (PID {slot['pid']}) 檢查通過, 保留綁定。")
                 continue
 
-        # 2. 搜尋*新*的窗口
         found_windows = self.find_game_windows()
         new_windows = [w for w in found_windows if w[1] not in current_pids]
 
         if not new_windows:
             self.log("沒有找到新的窗口。")
-            self.update_all_displays() # 確保 UI (例如剛被清理的) 已更新
+            self.update_all_displays()
             return
 
-        # 3. 將新窗口填入空 slots
         self.log(f"找到 {len(new_windows)} 個新窗口, 正在綁定...")
         new_window_iter = iter(new_windows)
         for i in range(MAX_CLIENTS):
-            if self.client_data_slots[i]["pid"] is None: # 這是個空 slot
+            if self.client_data_slots[i]["pid"] is None: 
                 try:
                     hwnd, pid = next(new_window_iter)
                     slot = self.client_data_slots[i]
                     slot["pid"] = pid
                     slot["hwnd"] = hwnd
-                    
-                    # (Main Thread) 執行一次性的掃描 I/O
                     self.scan_client_addresses(i) 
-                    
                     self.log(f"新窗口 (PID {pid}) 已綁定到窗口 {i+1}")
-                    
-                    # (Refactored) 立即更新 UI，而不是等待 Worker
                     self.update_client_list_ui(i) 
-                    
                 except StopIteration:
-                    break # 沒有更多新窗口了
-        
-        # 4. 統一更新
+                    break 
         self.update_all_displays()
 
-
     def scan_client_addresses(self, slot_index):
-        """(Main Thread) 掃描並快取 (儲存 pm_handle)"""
         slot = self.client_data_slots[slot_index]
         pid = slot["pid"]
-        self.log(f"--- D正在掃描 PID: {pid} ---")
-
+        self.log(f"--- 正在掃描 PID: {pid} ---")
         try:
-            # (Main Thread) 建立並儲存 Pymem 句柄
             pm = pymem.Pymem(pid)
             slot["pm_handle"] = pm
-            
             module = pymem.process.module_from_name(pm.process_handle, PROCESS_NAME)
             if not module:
                 self.log(f"  > 錯誤 (PID: {pid}): 找不到 {PROCESS_NAME} 模組。")
                 slot["status"] = "掃描失敗"
-                pm.close() 
-                slot["pm_handle"] = None
-                return
+                pm.close(); slot["pm_handle"] = None; return
             
             slot["module_base"] = module.lpBaseOfDll
             self.log(f"  > (PID: {pid}) 找到模組基址 @ 0x{module.lpBaseOfDll:X}")
 
-            # --- 1. 處理「快速行走」 ---
+            # --- 1. 快速行走 ---
             try:
                 addr = pymem.pattern.pattern_scan_module(pm.process_handle, module, AOB_PATTERN_WALK)
-                if not addr:
-                    self.log(f"  > (PID: {pid}) 找不到「行走」特徵碼")
-                    slot["walk_address"] = None 
-                else:
+                if addr:
                     patch_addr = addr + WALK_PATCH_OFFSET
                     curr_byte = pm.read_bytes(patch_addr, 1)[0]
                     slot["walk_address"] = patch_addr
                     if slot["walk_original_byte"] is None: slot["walk_original_byte"] = curr_byte
-                    if curr_byte == WALK_PATCHED_BYTE: slot["walk_is_patched"] = True
-                    elif curr_byte == slot["walk_original_byte"]: slot["walk_is_patched"] = False
-                    self.log(f"  > (PID: {pid}) 找到「行走」 @ 0x{patch_addr:X} (狀態: {'已修補' if slot['walk_is_patched'] else '原始'})")
+                    slot["walk_is_patched"] = (curr_byte == WALK_PATCHED_BYTE)
+                    self.log(f"  > (PID: {pid}) 找到「行走」 @ 0x{patch_addr:X}")
+                else: self.log(f"  > (PID: {pid}) 找不到「行走」特徵碼")
             except Exception as e: self.log(f"  > (PID: {pid}) 掃描「行走」出錯: {e}")
 
-            # --- 2. 處理「遊戲加速」 ---
+            # --- 2. 遊戲加速 ---
             try:
-                addr1, addr2 = None, None
-                is_patched_scan = False
+                addr1, addr2, is_patched_scan = None, None, False
                 addr1 = pymem.pattern.pattern_scan_module(pm.process_handle, module, AOB_PATTERN_SPEED_1_ORIGINAL)
                 addr2 = pymem.pattern.pattern_scan_module(pm.process_handle, module, AOB_PATTERN_SPEED_2_ORIGINAL)
                 if not addr1 or not addr2:
@@ -365,295 +322,261 @@ class DSAHelperApp(tk.Tk):
                     addr1 = pymem.pattern.pattern_scan_module(pm.process_handle, module, AOB_PATTERN_SPEED_1_PATCHED)
                     addr2 = pymem.pattern.pattern_scan_module(pm.process_handle, module, AOB_PATTERN_SPEED_2_PATCHED)
                     if addr1 and addr2: is_patched_scan = True 
-                if not addr1 or not addr2:
-                    self.log(f"  > (PID: {pid}) 找不到「加速」特徵碼")
-                    slot["speed_address_1"] = None; slot["speed_address_2"] = None
-                else:
-                    patch_addr1 = addr1 + SPEED_AOB_OFFSET
-                    patch_addr2 = addr2 + SPEED_AOB_OFFSET
-                    slot["speed_address_1"] = patch_addr1
-                    slot["speed_address_2"] = patch_addr2
+                if addr1 and addr2:
+                    patch_addr1, patch_addr2 = addr1 + SPEED_AOB_OFFSET, addr2 + SPEED_AOB_OFFSET
+                    slot["speed_address_1"], slot["speed_address_2"] = patch_addr1, patch_addr2
                     if is_patched_scan:
                         slot["speed_is_patched"] = True
-                        if slot["speed_original_bytes_1"] is None: self.log(f"  > (PID: {pid}) 警告：找到已修補的「加速」位址，但沒有快取原始 bytes，將無法還原！")
+                        if slot["speed_original_bytes_1"] is None: self.log(f"  > (PID: {pid}) 警告：找到已修補的「加速」位址！")
                     else:
                         slot["speed_is_patched"] = False
                         slot["speed_original_bytes_1"] = pm.read_bytes(patch_addr1, len(NOP_PATCH))
                         slot["speed_original_bytes_2"] = pm.read_bytes(patch_addr2, len(NOP_PATCH))
-                    self.log(f"  > (PID: {pid}) 找到「加速1」 @ 0x{patch_addr1:X} (狀態: {'已修補' if slot['speed_is_patched'] else '原始'})")
+                    self.log(f"  > (PID: {pid}) 找到「加速1」 @ 0x{patch_addr1:X}")
+                else: self.log(f"  > (PID: {pid}) 找不到「加速」特徵碼")
             except Exception as e: self.log(f"  > (PID: {pid}) 掃描「加速」出錯: {e}")
 
-            # --- 3. 處理「穿牆行走」 ---
+            # --- 3. 穿牆行走 ---
             try:
-                addr = None
-                is_patched_scan = False
+                addr, is_patched_scan = None, False
                 addr = pymem.pattern.pattern_scan_module(pm.process_handle, module, AOB_PATTERN_NOCLIP_ORIGINAL)
                 if not addr:
                     self.log(f"  > (PID: {pid}) 未找到「穿牆」原始 AOB，嘗試掃描已修補 AOB...")
                     addr = pymem.pattern.pattern_scan_module(pm.process_handle, module, AOB_PATTERN_NOCLIP_PATCHED)
                     if addr: is_patched_scan = True 
-                if not addr:
-                    self.log(f"  > (PID: {pid}) 找不到「穿牆」特徵碼")
-                    slot["noclip_address"] = None
-                else:
+                if addr:
                     patch_addr = addr + NOCLIP_PATCH_OFFSET
                     slot["noclip_address"] = patch_addr
                     if is_patched_scan:
                         slot["noclip_is_patched"] = True
-                        if slot["noclip_original_bytes"] is None: self.log(f"  > (PID: {pid}) 警告：找到已修補的「穿牆」位址，但沒有快取原始 bytes，將無法還原！")
+                        if slot["noclip_original_bytes"] is None: self.log(f"  > (PID: {pid}) 警告：找到已修補的「穿牆」位址！")
                     else:
                         slot["noclip_is_patched"] = False
                         slot["noclip_original_bytes"] = pm.read_bytes(patch_addr, len(NOCLIP_PATCHED_BYTES))
-                    self.log(f"  > (PID: {pid}) 找到「穿牆」 @ 0x{patch_addr:X} (狀態: {'已修補' if slot['noclip_is_patched'] else '原始'})")
+                    self.log(f"  > (PID: {pid}) 找到「穿牆」 @ 0x{patch_addr:X}")
+                else: self.log(f"  > (PID: {pid}) 找不到「穿牆」特徵碼")
             except Exception as e: self.log(f"  > (PID: {pid}) 掃描「穿牆」出錯: {e}")
 
-            # --- 4. 掃描完成 ---
             slot["status"] = "已綁定"
-            
         except Exception as e:
             self.log(f"掃描時發生嚴重錯誤 (PID: {pid}): {e}")
             slot["status"] = "掃描失敗"
             if slot["pm_handle"]: 
-                slot["pm_handle"].close()
-                slot["pm_handle"] = None
+                slot["pm_handle"].close(); slot["pm_handle"] = None
 
 
-    # --- (Refactored) GUI 更新 (Main Thread) ---
-    # 這些函式現在 *只讀取快取 (self.client_data_slots)*，不執行 I/O
-    
+    # --- (★★★) (修正 #1)「單一畫布」GUI 更新 (Main Thread) ---
     def on_selection_change(self):
-        """(Main Thread) 當 Checkbox 被點擊時, 更新右側顯示"""
         self.update_all_displays()
 
     def update_all_displays(self):
-        """
-        (Main Thread) 核心: 動態建立/銷毀 UI
-        (Refactored) *** 不執行任何 Pymem 讀取 ***
-        *** 只從 self.client_data_slots 讀取快取資料 ***
-        """
+        """(Main Thread) (單一畫布 優化) 動態建立/銷毀 UI"""
         
         for i in range(MAX_CLIENTS):
             slot = self.client_data_slots[i]
-            
             is_selected = self.client_selection_vars[i].get() == 1
             is_bound = slot["status"] == "已綁定"
-            
             settings_ui = self.setting_widgets[i]
             
             if is_selected and is_bound:
                 # --- 1. 更新「遊戲設置」 ---
                 settings_ui["frame"].pack(side="left", fill="y", anchor="n", padx=5, pady=5) 
-                
                 settings_ui["frame"].config(text=slot.get("account_name", f"窗口 {i+1}"))
                 settings_ui["vars"]["game_speed"].set(slot["speed_is_patched"])
                 settings_ui["vars"]["fast_walk"].set(slot["walk_is_patched"])
                 settings_ui["vars"]["no_clip"].set(slot["noclip_is_patched"])
                 settings_ui["vars"]["hide_sa"].set(slot["is_hidden"])
-                
                 settings_ui["widgets"]["speed"].config(state="normal" if slot["speed_address_1"] else "disabled")
                 settings_ui["widgets"]["walk"].config(state="normal" if slot["walk_address"] else "disabled")
                 settings_ui["widgets"]["noclip"].config(state="normal" if slot["noclip_address"] else "disabled")
                 settings_ui["widgets"]["hide"].config(state="normal" if slot["hwnd"] else "disabled")
 
-                # --- 2. 檢查「人寵資料」UI 是否需要建立 ---
-                if self.char_frames[i] is None:
+                # --- 2. (單一畫布 優化) 檢查「人寵資料」UI ---
+                client_ui_pack = self.client_canvas_ui[i]
+                
+                if client_ui_pack is None:
                     # --- 2a. 建立 UI ---
-                    self.log(f"窗口 {i+1}: 正在建立人寵 UI...")
+                    self.log(f"窗口 {i+1}: 正在建立 單一畫布 UI...")
                     parent_frame = self.tab_frame_char.inner_frame
                     
-                    client_frame = ttk.Labelframe(parent_frame, text=f"窗口 {i+1}", padding=5)
+                    client_frame = ttk.Labelframe(parent_frame, text=f"窗口 {i+1}", padding=0)
                     
-                    for col_idx in range(0, 11, 2):
-                        client_frame.columnconfigure(col_idx, minsize=self.scaled_char_column_width)
-                    client_frame.rowconfigure(0, weight=1)
+                    canvas, all_vars_list = app_ui.create_client_info_canvas(client_frame, self)
                     
-                    person_vars_dict = {}
-                    app_ui.create_person_column(client_frame, 0, person_vars_dict)
-                    
-                    pet_vars_list_for_client = []
-                    for p_idx in range(5):
-                        sep = ttk.Separator(client_frame, orient="vertical")
-                        sep.grid(row=0, column=(p_idx*2 + 1), sticky="ns", padx=5)
-                        pet_vars = app_ui.create_pet_column(client_frame, p_idx, (p_idx*2 + 2))
-                        pet_vars_list_for_client.append(pet_vars)
-                    
-                    # 儲存
-                    self.char_frames[i] = client_frame
-                    self.person_vars[i] = person_vars_dict
-                    self.pet_vars_list[i] = pet_vars_list_for_client
-
-                # --- 2b. 顯示並更新 UI (無論是剛建立的還是已有的) ---
-                char_ui_frame = self.char_frames[i]
-                person_vars = self.person_vars[i]
-                pet_vars_list = self.pet_vars_list[i]
-
-                char_ui_frame.grid(row=i, column=0, sticky="ew", padx=5, pady=5) 
-                char_ui_frame.config(text=slot.get("account_name", f"窗口 {i+1}"))
+                    # 儲存 UI 引用
+                    client_ui_pack = {
+                        "frame": client_frame,
+                        "canvas": canvas,
+                        "vars_list": all_vars_list # [person_vars, pet1_vars, ...]
+                    }
+                    self.client_canvas_ui[i] = client_ui_pack
                 
-                # (Refactored) 從快取更新
-                self._configure_character_widgets(slot.get("char_data_cache"), person_vars)
+                # --- 2b. 顯示並更新 UI ---
+                client_ui_pack["frame"].grid(row=i, column=0, sticky="ew", padx=5, pady=5) 
+                client_ui_pack["frame"].config(text=slot.get("account_name", f"窗口 {i+1}"))
                 
+                canvas = client_ui_pack["canvas"]
+                vars_list = client_ui_pack["vars_list"]
+                
+                # 更新人物 Canvas
+                self._configure_character_canvas(canvas, vars_list[0], slot.get("char_data_cache"))
+                
+                # 更新寵物 Canvases
                 pet_caches = slot.get("pet_data_cache", [None] * 5)
                 for p_idx in range(5):
-                    self._configure_pet_widgets(pet_caches[p_idx], pet_vars_list[p_idx], p_idx)
+                    self._configure_pet_canvas(canvas, vars_list[p_idx + 1], pet_caches[p_idx], p_idx)
 
             else:
-                # --- 3. 未勾選: 隱藏 (Settings) 並 銷毀 (Char Info) ---
+                # --- 3. 未勾選: 隱藏 (Settings) 並 銷毀 (Char Info Canvas) ---
                 settings_ui["frame"].pack_forget()
-
-                if self.char_frames[i] is not None:
-                    self.log(f"窗口 {i+1}: 正在銷毀人寵 UI...")
-                    self.char_frames[i].destroy()
-                    self.char_frames[i] = None
-                    self.person_vars[i] = None
-                    self.pet_vars_list[i] = None
+                client_ui_pack = self.client_canvas_ui[i]
+                if client_ui_pack is not None:
+                    self.log(f"窗口 {i+1}: 正在銷毀 單一畫布 UI...")
+                    client_ui_pack["frame"].destroy() 
+                    self.client_canvas_ui[i] = None
         
-        # 觸發 ScrollableFrame 重新計算
         if self.tab_frame_settings:
             self.tab_frame_settings.inner_frame.event_generate("<Configure>")
         if self.tab_frame_char:
             self.tab_frame_char.inner_frame.event_generate("<Configure>")
+            
+        # (★★★) (修正 #3) 更新完 UI 後，調整視窗高度
+        self.adjust_window_height()
 
-    def _configure_character_widgets(self, data, person_vars):
-        """(Main Thread) 輔助函式, 根據 *快取資料* data 設定 UI"""
-        app_bg_color = self.cget("background") # 獲取 App 背景色
+
+    def _configure_character_canvas(self, canvas, person_vars, data):
+        """(單一畫布 優化) 更新人物 Canvas Item ID"""
         if data:
-            person_vars["name"].config(text=data.get("name", "錯誤"))
-            person_vars["nickname"].config(text=data.get("nickname", "稱號"))
-            person_vars["lv"].config(text=data.get("lv", "--"))
-            person_vars["hp"].config(text=data.get("hp", "--/--"))
-            person_vars["mp"].config(text=data.get("mp", "--/--"))
-            person_vars["atk"].config(text=data.get("atk", "--"))
-            person_vars["def"].config(text=data.get("def", "--"))
-            person_vars["agi"].config(text=data.get("agi", "--"))
-            person_vars["vit"].config(text=data.get("vit", "--"))
-            person_vars["str"].config(text=data.get("str", "--"))
-            person_vars["sta"].config(text=data.get("sta", "--"))
-            person_vars["spd"].config(text=data.get("spd", "--"))
+            canvas.itemconfigure(person_vars["name"], text=data.get("name", "人物"))
+            canvas.itemconfigure(person_vars["nickname"], text=data.get("nickname", "稱號"))
+            canvas.itemconfigure(person_vars["lv"], text=data.get("lv", "--"))
+            canvas.itemconfigure(person_vars["hp"], text=data.get("hp", "--/--"))
+            canvas.itemconfigure(person_vars["mp"], text=data.get("mp", "--/--"))
+            canvas.itemconfigure(person_vars["atk"], text=data.get("atk", "--"))
+            canvas.itemconfigure(person_vars["def"], text=data.get("def", "--"))
+            canvas.itemconfigure(person_vars["agi"], text=data.get("agi", "--"))
+            canvas.itemconfigure(person_vars["vit"], text=data.get("vit", "--"))
+            canvas.itemconfigure(person_vars["str"], text=data.get("str", "--"))
+            canvas.itemconfigure(person_vars["sta"], text=data.get("sta", "--"))
+            canvas.itemconfigure(person_vars["spd"], text=data.get("spd", "--"))
 
             rebirth_text = data.get("rebirth", "未知")
             rebirth_color = REBIRTH_COLOR_MAP.get(rebirth_text, DEFAULT_FG_COLOR)
-            person_vars["rebirth"].config(text=rebirth_text, foreground=rebirth_color)
+            canvas.itemconfigure(person_vars["rebirth"], text=rebirth_text, fill=rebirth_color)
 
             charm_val = data.get("charm", 0) 
             charm_color = "red" if charm_val <= 60 else DEFAULT_FG_COLOR
-            person_vars["charm"].config(text=str(charm_val), foreground=charm_color)
+            canvas.itemconfigure(person_vars["charm"], text=str(charm_val), fill=charm_color)
 
-            element_text = data.get("element", "無")
-            
-            if element_text != person_vars.get("last_element"):
-                app_ui.update_element_display(person_vars["element_frame"], element_text, app_bg_color)
-                person_vars["last_element"] = element_text
+            e, w, f, wi = data.get("element_raw", (0,0,0,0))
+            canvas.itemconfigure(person_vars["elem_e_val"], text=f"{e//10}" if e > 0 else "")
+            canvas.itemconfigure(person_vars["elem_w_val"], text=f"{w//10}" if w > 0 else "")
+            canvas.itemconfigure(person_vars["elem_f_val"], text=f"{f//10}" if f > 0 else "")
+            canvas.itemconfigure(person_vars["elem_wi_val"], text=f"{wi//10}" if wi > 0 else "")
         else:
-            # (省略... 與原碼相同)
-            person_vars["name"].config(text="人物")
-            person_vars["nickname"].config(text="稱號")
-            # ... (其他欄位)
-            person_vars["rebirth"].config(text="--", foreground=DEFAULT_FG_COLOR)
-            person_vars["charm"].config(text="--", foreground=DEFAULT_FG_COLOR)
-            if person_vars.get("last_element") != "無":
-                app_ui.update_element_display(person_vars["element_frame"], "無", app_bg_color)
-                person_vars["last_element"] = "無"
+            canvas.itemconfigure(person_vars["name"], text="人物")
+            canvas.itemconfigure(person_vars["nickname"], text="稱號")
+            canvas.itemconfigure(person_vars["lv"], text="--")
+            canvas.itemconfigure(person_vars["hp"], text="--/--")
+            canvas.itemconfigure(person_vars["mp"], text="--/--")
+            canvas.itemconfigure(person_vars["atk"], text="--")
+            canvas.itemconfigure(person_vars["def"], text="--")
+            canvas.itemconfigure(person_vars["agi"], text="--")
+            canvas.itemconfigure(person_vars["vit"], text="--")
+            canvas.itemconfigure(person_vars["str"], text="--")
+            canvas.itemconfigure(person_vars["sta"], text="--")
+            canvas.itemconfigure(person_vars["spd"], text="--")
+            canvas.itemconfigure(person_vars["rebirth"], text="--", fill=DEFAULT_FG_COLOR)
+            canvas.itemconfigure(person_vars["charm"], text="--", fill=DEFAULT_FG_COLOR)
+            canvas.itemconfigure(person_vars["elem_e_val"], text="")
+            canvas.itemconfigure(person_vars["elem_w_val"], text="")
+            canvas.itemconfigure(person_vars["elem_f_val"], text="")
+            canvas.itemconfigure(person_vars["elem_wi_val"], text="")
 
 
-    def _clear_pet_vars(self, pet_vars, pet_index, app_bg_color):
-        """(Main Thread) 輔助函式, 重置寵物 widgets"""
-        pet_vars["name"].config(text=f"寵物{app_ui.num_to_chinese(pet_index + 1)}")
-        pet_vars["nickname"].config(text="")
-        # ... (其他欄位)
-        pet_vars["loyal"].config(text="--", foreground=DEFAULT_FG_COLOR)
-        app_ui.update_element_display(pet_vars["element_frame"], "無", app_bg_color)
-        pet_vars["rebirth"].config(text="--", foreground=DEFAULT_FG_COLOR)
-
-    def _configure_pet_widgets(self, data, pet_vars, p_idx):
-        """(Main Thread) 根據 *快取資料* data 設定 UI"""
-        app_bg_color = self.cget("background") # 獲取 App 背景色
+    def _configure_pet_canvas(self, canvas, pet_vars, data, p_idx):
+        """(單一畫布 優化) 更新寵物 Canvas Item ID"""
+        default_pet_title = app_ui.num_to_chinese(p_idx + 1)
         if data:
-            pet_vars["name"].config(text=data.get("name", "錯誤"))
-            pet_vars["nickname"].config(text=data.get("nickname", ""))
-            # ... (其他欄位)
-
+            pet_name = data.get("name")
+            display_name = pet_name if pet_name else f"寵物{default_pet_title}"
+            canvas.itemconfigure(pet_vars["name"], text=display_name)
+            canvas.itemconfigure(pet_vars["nickname"], text=data.get("nickname", ""))
+            canvas.itemconfigure(pet_vars["lv"], text=data.get("lv", "--"))
+            canvas.itemconfigure(pet_vars["exp"], text=data.get("exp", "--"))
+            canvas.itemconfigure(pet_vars["lack"], text=data.get("lack", "--"))
+            canvas.itemconfigure(pet_vars["hp"], text=data.get("hp", "--/--"))
+            canvas.itemconfigure(pet_vars["atk"], text=data.get("atk", "--"))
+            canvas.itemconfigure(pet_vars["def"], text=data.get("def", "--"))
+            canvas.itemconfigure(pet_vars["agi"], text=data.get("agi", "--"))
+            
             rebirth_text = data.get("rebirth", "未知")
             rebirth_color = REBIRTH_COLOR_MAP.get(rebirth_text, DEFAULT_FG_COLOR)
-            pet_vars["rebirth"].config(text=rebirth_text, foreground=rebirth_color)
+            canvas.itemconfigure(pet_vars["rebirth"], text=rebirth_text, fill=rebirth_color)
 
             loyal_val = data.get("loyal", 100) 
             loyal_color = "red" if loyal_val <= 20 else DEFAULT_FG_COLOR
-            pet_vars["loyal"].config(text=str(loyal_val), foreground=loyal_color)
+            canvas.itemconfigure(pet_vars["loyal"], text=str(loyal_val), fill=loyal_color)
 
-            element_text = data.get("element", "無")
-            
-            if element_text != pet_vars.get("last_element"):
-                app_ui.update_element_display(pet_vars["element_frame"], element_text, app_bg_color)
-                pet_vars["last_element"] = element_text
+            e, w, f, wi = data.get("element_raw", (0,0,0,0))
+            canvas.itemconfigure(pet_vars["elem_e_val"], text=f"{e//10}" if e > 0 else "")
+            canvas.itemconfigure(pet_vars["elem_w_val"], text=f"{w//10}" if w > 0 else "")
+            canvas.itemconfigure(pet_vars["elem_f_val"], text=f"{f//10}" if f > 0 else "")
+            canvas.itemconfigure(pet_vars["elem_wi_val"], text=f"{wi//10}" if wi > 0 else "")
         else:
-            if pet_vars.get("last_element") is not None:
-                self._clear_pet_vars(pet_vars, p_idx, app_bg_color)
-                pet_vars["last_element"] = None
+            canvas.itemconfigure(pet_vars["name"], text=f"寵物{default_pet_title}")
+            canvas.itemconfigure(pet_vars["nickname"], text="")
+            canvas.itemconfigure(pet_vars["lv"], text="--")
+            canvas.itemconfigure(pet_vars["exp"], text="--")
+            canvas.itemconfigure(pet_vars["lack"], text="--")
+            canvas.itemconfigure(pet_vars["hp"], text="--/--")
+            canvas.itemconfigure(pet_vars["atk"], text="--")
+            canvas.itemconfigure(pet_vars["def"], text="--")
+            canvas.itemconfigure(pet_vars["agi"], text="--")
+            canvas.itemconfigure(pet_vars["rebirth"], text="--", fill=DEFAULT_FG_COLOR)
+            canvas.itemconfigure(pet_vars["loyal"], text="--", fill=DEFAULT_FG_COLOR)
+            canvas.itemconfigure(pet_vars["elem_e_val"], text="")
+            canvas.itemconfigure(pet_vars["elem_w_val"], text="")
+            canvas.itemconfigure(pet_vars["elem_f_val"], text="")
+            canvas.itemconfigure(pet_vars["elem_wi_val"], text="")
+
 
     def update_client_list_ui(self, slot_index=None):
-        """
-        (Main Thread) 
-        (Refactored) 只更新左側 Checkbox 的 *顯示*
-        *** 不執行任何 Pymem 讀取 ***
-        """
         indices_to_update = range(MAX_CLIENTS) if slot_index is None else [slot_index]
-        
         for i in indices_to_update:
             slot = self.client_data_slots[i]
             checkbox = self.client_checkboxes[i] 
-
             if slot["status"] == "已綁定":
                 checkbox.config(text=slot["account_name"], state="normal", fg="green")
             else:
                 checkbox.config(text=f"窗口 {i+1}: {slot['status']}", state="disabled", fg="grey")
-                # (Refactored) 清理操作已移至 check_data_queue 和 on_bind_click
                 
-    # (Refactored) 刪除 start_monitoring_loop 和 monitor_game_states
-    # 它們的邏輯已移至 memory_worker.py
-
     def get_poll_interval_sec(self):
-        """(Refactored) 轉換刷新頻率 (秒)"""
         value = self.refresh_rate_var.get()
         mapping = {
             '0.5s': 0.5, '1s': 1.0, '3s': 3.0, '5s': 5.0,
             '10s': 10.0, '60s': 60.0, '不刷新': None
         }
-        return mapping.get(value, 3.0) # 預設 3s
+        return mapping.get(value, 3.0) 
 
     def on_refresh_rate_change(self, event=None):
-        """
-        (Main Thread) 
-        (Refactored) 當刷新頻率改變時, *傳送命令* 到 Worker 執行緒
-        """
         new_rate_sec = self.get_poll_interval_sec()
         self.log(f"刷新頻率變更為: {self.refresh_rate_var.get()}")
-        
-        # 傳送命令到 Worker 執行緒
         if self.worker_thread and self.worker_thread.is_alive():
-            self.command_queue.put({
-                "action": "set_rate",
-                "value": new_rate_sec
-            })
+            self.command_queue.put({"action": "set_rate", "value": new_rate_sec})
 
     # --- (Main Thread) 核心功能：執行修補 (寫入) ---
-    # (Refactored) 所有 *寫入* 操作保留在主執行緒中
-    # 這些是快速、瞬時的操作，不會造成持續的 UI 卡頓
-    
     def on_toggle_walk(self, client_index):
         slot = self.client_data_slots[client_index]
         pm = slot["pm_handle"]
         addr, orig_byte = slot["walk_address"], slot["walk_original_byte"]
-        
         if pm is None or addr is None or orig_byte is None:
             self.log(f"窗口 {client_index+1} 錯誤：行走功能未綁定。")
             self.setting_widgets[client_index]["vars"]["fast_walk"].set(not self.setting_widgets[client_index]["vars"]["fast_walk"].get())
             return
-            
         is_checked = self.setting_widgets[client_index]["vars"]["fast_walk"].get()
         target_byte = WALK_PATCHED_BYTE if is_checked else orig_byte
-        action_text = "啟用" if is_checked else "還原"
-        self.log(f"窗口 {client_index+1}: 快速行走 {action_text}...")
+        self.log(f"窗口 {client_index+1}: 快速行走 {'啟用' if is_checked else '還原'}...")
         success = self.perform_write_byte(pm, addr, target_byte)
         if success: slot["walk_is_patched"] = is_checked
         else:
@@ -663,15 +586,12 @@ class DSAHelperApp(tk.Tk):
     def on_toggle_speed(self, client_index):
         slot = self.client_data_slots[client_index]
         pm = slot["pm_handle"]
-        
         if pm is None or not slot["speed_address_1"] or not slot["speed_original_bytes_1"]:
             self.log(f"窗口 {client_index+1} 錯誤：加速功能未綁定。")
             self.setting_widgets[client_index]["vars"]["game_speed"].set(not self.setting_widgets[client_index]["vars"]["game_speed"].get())
             return
-            
         is_checked = self.setting_widgets[client_index]["vars"]["game_speed"].get()
-        action_text = "啟用 (NOP)" if is_checked else "還原 (ADD)"
-        self.log(f"窗口 {client_index+1}: 遊戲加速 {action_text}...")
+        self.log(f"窗口 {client_index+1}: 遊戲加速 {'啟用 (NOP)' if is_checked else '還原 (ADD)'}...")
         if is_checked: target1, target2 = NOP_PATCH, NOP_PATCH
         else: target1, target2 = slot["speed_original_bytes_1"], slot["speed_original_bytes_2"]
         s1 = self.perform_write_bytes(pm, slot["speed_address_1"], target1)
@@ -685,16 +605,13 @@ class DSAHelperApp(tk.Tk):
         slot = self.client_data_slots[client_index]
         pm = slot["pm_handle"]
         addr, orig_bytes = slot["noclip_address"], slot["noclip_original_bytes"]
-        
         if pm is None or addr is None or orig_bytes is None:
             self.log(f"窗口 {client_index+1} 錯誤：穿牆功能未綁定。")
             self.setting_widgets[client_index]["vars"]["no_clip"].set(not self.setting_widgets[client_index]["vars"]["no_clip"].get())
             return
-            
         is_checked = self.setting_widgets[client_index]["vars"]["no_clip"].get()
         target_bytes = NOCLIP_PATCHED_BYTES if is_checked else orig_bytes
-        action_text = "啟用" if is_checked else "還原"
-        self.log(f"窗口 {client_index+1}: 穿牆行走 {action_text}...")
+        self.log(f"窗口 {client_index+1}: 穿牆行走 {'啟用' if is_checked else '還原'}...")
         success = self.perform_write_bytes(pm, addr, target_bytes)
         if success: slot["noclip_is_patched"] = is_checked
         else:
@@ -707,11 +624,9 @@ class DSAHelperApp(tk.Tk):
         if hwnd is None:
             self.log(f"窗口 {client_index+1} 錯誤：未找到窗口句柄(HWND)。")
             return
-            
         is_checked = self.setting_widgets[client_index]["vars"]["hide_sa"].get()
         command = SW_HIDE if is_checked else SW_SHOW
-        action_text = "隱藏" if is_checked else "顯示"
-        self.log(f"窗口 {client_index+1}: {action_text}...")
+        self.log(f"窗口 {client_index+1}: {'隱藏' if is_checked else '顯示'}...")
         try:
             ctypes.windll.user32.ShowWindow(hwnd, command)
             slot["is_hidden"] = is_checked
@@ -720,7 +635,6 @@ class DSAHelperApp(tk.Tk):
             self.setting_widgets[client_index]["vars"]["hide_sa"].set(not is_checked)
 
     def perform_write_byte(self, pm, patch_address, target_byte):
-        """(Main Thread) 寫入單一位元組"""
         try:
             pm.write_uchar(patch_address, target_byte)
             written_byte = pm.read_bytes(patch_address, 1)[0]
@@ -735,7 +649,6 @@ class DSAHelperApp(tk.Tk):
             return False
             
     def perform_write_bytes(self, pm, patch_address, target_bytes):
-        """(Main Thread) 寫入多位元組"""
         try:
             pm.write_bytes(patch_address, target_bytes, len(target_bytes))
             written_bytes = pm.read_bytes(patch_address, len(target_bytes))
@@ -749,9 +662,21 @@ class DSAHelperApp(tk.Tk):
             self.log(f"寫入多位元組時出錯 (PID: {pm.process_id}): {e}")
             return False
 
-    # --- (Main Thread) WinAPI & 關閉 ---
+    # --- (★★★) (修正 #2) WinAPI & 關閉 (右鍵邏輯對調) ---
 
     def on_client_right_click_single(self, event, client_index):
+        """(★★★) (修正 #2) 邏輯對調: 單擊 = 縮小"""
+        slot = self.client_data_slots[client_index]
+        if slot["status"] != "已綁定" or slot["hwnd"] is None: return
+        hwnd = slot["hwnd"]
+        try:
+            self.log(f"窗口 {client_index+1}: 縮小")
+            ctypes.windll.user32.ShowWindow(hwnd, SW_MINIMIZE) 
+        except Exception as e:
+            self.log(f"右鍵單擊(縮小)窗口 {client_index+1} 時出錯: {e}")
+
+    def on_client_right_click_double(self, event, client_index):
+        """(★★★) (修正 #2) 邏輯對調: 雙擊 = 激活/還原"""
         slot = self.client_data_slots[client_index]
         if slot["status"] != "已綁定" or slot["hwnd"] is None: return
         hwnd = slot["hwnd"]
@@ -761,46 +686,26 @@ class DSAHelperApp(tk.Tk):
                 ctypes.windll.user32.ShowWindow(hwnd, SW_RESTORE)
             ctypes.windll.user32.SetForegroundWindow(hwnd)
         except Exception as e:
-            self.log(f"右鍵單擊窗口 {client_index+1} 時出錯: {e}")
-
-    def on_client_right_click_double(self, event, client_index):
-        slot = self.client_data_slots[client_index]
-        if slot["status"] != "已綁定" or slot["hwnd"] is None: return
-        hwnd = slot["hwnd"]
-        try:
-            self.log(f"窗口 {client_index+1}: 縮小")
-            ctypes.windll.user32.ShowWindow(hwnd, SW_MINIMIZE) 
-        except Exception as e:
-            self.log(f"右鍵雙擊窗口 {client_index+1} 時出錯: {e}")
+            self.log(f"右鍵雙擊(激活)窗口 {client_index+1} 時出錯: {e}")
 
     def on_closing(self):
         """(Main Thread) 關閉程式時的清理"""
-        
-        # (Refactored) 1. 告訴 Worker 執行緒停止
         self.log("正在傳送停止訊號到 Worker 執行緒...")
         if self.worker_thread and self.worker_thread.is_alive():
             self.command_queue.put({"action": "stop"})
-            # (可選) 等待執行緒結束，最多 2 秒
             self.worker_thread.join(timeout=2.0) 
-            if self.worker_thread.is_alive():
-                self.log("  > Worker 執行緒未在 2 秒內停止。")
 
-        # 2. 執行主執行緒的清理 (還原補丁、關閉句柄)
         self.log("正在還原所有補丁並關閉句柄...")
-        
         for i in range(MAX_CLIENTS):
             slot = self.client_data_slots[i]
             pm = slot["pm_handle"]
+            if not pm or slot["status"] != "已綁定": continue
             
-            if not pm or slot["status"] != "已綁定":
-                continue
-            
-            # (Refactored) 檢查句柄是否仍然有效
             try:
                 pm.read_int(slot["module_base"]) 
             except Exception:
                 self.log(f"窗口 {i+1} (PID {slot['pid']}) 句柄已失效, 跳過還原。")
-                try: pm.close() # 關閉失效的句柄
+                try: pm.close()
                 except: pass
                 continue
             
@@ -817,7 +722,6 @@ class DSAHelperApp(tk.Tk):
                     ctypes.windll.user32.ShowWindow(slot["hwnd"], SW_SHOW)
             except Exception as e:
                 self.log(f"還原 PID {slot['pid']} 時出錯: {e}")
-            
             try:
                 pm.close()
                 self.log(f"  > (PID: {slot['pid']}) 句柄已關閉。")
