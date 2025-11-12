@@ -183,25 +183,33 @@ class DSAHelperApp(tk.Tk):
     def __init__(self):
         super().__init__() # 必須先初始化 TK
         
-        # (★★★) v3.8: 動態 DPI 縮放 (★★★)
+        # (★★★) v3.10: 動態 DPI 縮放 (★★★)
         # 1. 取得 TKinter 感知到的 DPI 縮放比例
-        #    (因為有 SetProcessDpiAwareness(1), 這裡會回傳 1.0, 1.25, 1.5 等)
         try:
-            scaling_factor = self.tk.call('tk', 'scaling')
+            # 儲存為 self.scaling_factor
+            self.scaling_factor = self.tk.call('tk', 'scaling')
         except Exception:
-            scaling_factor = 1.0 # 預設為 100%
+            self.scaling_factor = 1.0 # 預設為 100%
 
         # 2. 定義在 100% (scaling_factor=1.0) 情況下的基礎大小
         #    (基準: 1420x420 @ 150%)
-        BASE_WIDTH = 690  # (1420 / 1.5)
+        #    (基準: 170 / 1.5 = 113.3)
+        #    (基準: 170 / 1.5 = 113.3)
+        BASE_WIDTH = 890  # (1420 / 1.5)
         BASE_HEIGHT = 210 # (420 / 1.5)
+        BASE_LEFT_PANEL_WIDTH = 114 # (170 / 1.5)
+        BASE_CHAR_COLUMN_WIDTH = 114 # (170 / 1.5)
 
         # 3. 根據當前縮放比例，計算出新的窗口大小
-        scaled_width = int(BASE_WIDTH * scaling_factor)
-        scaled_height = int(BASE_HEIGHT * scaling_factor)
+        scaled_width = int(BASE_WIDTH * self.scaling_factor)
+        scaled_height = int(BASE_HEIGHT * self.scaling_factor)
+        
+        # (★★★) v3.10: 計算「縮放後」的寬度並儲存
+        self.scaled_left_panel_width = int(BASE_LEFT_PANEL_WIDTH * self.scaling_factor)
+        self.scaled_char_column_width = int(BASE_CHAR_COLUMN_WIDTH * self.scaling_factor)
 
-        # (★★★) v3.9: 更新標題
-        self.title("DSA新端輔助程式 v3.9         by 石器推廣大使 陳財佑")
+        # (★★★) v3.10: 更新標題
+        self.title("DSA新端輔助程式 v3.10 by 石器推廣大使 陳財佑")
         
         try:
             # 這裡會載入 icon.ico (需要放在同資料夾)
@@ -269,11 +277,12 @@ class DSAHelperApp(tk.Tk):
         except AttributeError: return ctypes.windll.shell32.IsUserAnAdmin() != 0
 
     def create_widgets(self):
-        """(v3.1) 建立所有GUI元件 (綁定單/雙擊右鍵)"""
+        """(v3.10) 建立所有GUI元件 (使用動態寬度)"""
         main_frame = ttk.Frame(self, padding=10)
         main_frame.pack(fill="both", expand=True)
 
-        left_frame = ttk.Frame(main_frame, width=170, padding=(5,5,5,5), relief="groove")
+        # (★★★) v3.10: 使用縮放後的寬度
+        left_frame = ttk.Frame(main_frame, width=self.scaled_left_panel_width, padding=(5,5,5,5), relief="groove")
         left_frame.pack(side="left", fill="y", padx=(0, 10))
         left_frame.pack_propagate(False)
 
@@ -796,7 +805,7 @@ class DSAHelperApp(tk.Tk):
         self.update_all_displays()
 
     def update_all_displays(self):
-        """(★★★) v3.9: 核心: 動態建立/銷毀 UI"""
+        """(★★★) v3.10: 核心: 動態建立/銷毀 UI (使用動態寬度)"""
         
         for i in range(MAX_CLIENTS):
             slot = self.client_data_slots[i]
@@ -831,9 +840,9 @@ class DSAHelperApp(tk.Tk):
                     
                     client_frame = ttk.Labelframe(parent_frame, text=f"窗口 {i+1}", padding=5)
                     
-                    # 預先設定最小寬度 (從 _create_char_ui_all 移來)
+                    # (★★★) v3.10: 使用縮放後的最小寬度
                     for col_idx in range(0, 11, 2):
-                        client_frame.columnconfigure(col_idx, minsize=170)
+                        client_frame.columnconfigure(col_idx, minsize=self.scaled_char_column_width)
                     client_frame.rowconfigure(0, weight=1)
                     
                     person_vars_dict = {}
