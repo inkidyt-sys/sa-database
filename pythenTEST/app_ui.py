@@ -8,7 +8,7 @@ from constants import MAX_CLIENTS, DEFAULT_FG_COLOR, ELEMENT_COLOR_MAP
 from utils import num_to_chinese
 
 # (★★★) (修正 #3) Canvas 基礎高度
-CANVAS_ROW_HEIGHT = 225 
+CANVAS_ROW_HEIGHT = 140 
 
 # --- 靜態 UI 建立函式 ---
 
@@ -131,7 +131,7 @@ def create_client_info_canvas(parent_labelframe, app_instance):
     """
     
     # (★★★) (修正 #1) 依人物欄位為基準的寬度 (未縮放)
-    base_col_width = 190 
+    base_col_width = 120 
     
     col_width = int(base_col_width * app_instance.scaling_factor)
     x_padding = 10
@@ -184,14 +184,14 @@ def _draw_person_canvas_items(canvas, x):
     
     vars_dict = {} 
     y = 15
-    y_step = 19 
+    y_step = 24
     
-    # (★★★) (修正 #1) 
-    # 這是能容納 999999999 數值的 4 欄位網格
     x_label_1 = x
-    x_value_1 = x + 35
-    x_label_2 = x + 105 # 為 value_1 (999...) 提供 70px 空間
-    x_value_2 = x + 140 # 為 label_2 (防禦:) 提供 35px 空間
+    x_value_1 = x + 45
+    
+    # (★★★) 修正座標：將第 2 欄向右移動，避免重疊
+    x_label_2 = x + 100 # (原為 105) 
+    x_value_2 = x + 145 # (原為 140)
     
     vars_dict["name"] = canvas.create_text(x_label_1, y, text="人物", font=("Arial", 9, "bold"), anchor="w", fill=DEFAULT_FG_COLOR)
     y += y_step
@@ -225,7 +225,8 @@ def _draw_person_canvas_items(canvas, x):
     
     canvas.create_text(x_label_1, y, text="屬性:", anchor="w", fill=DEFAULT_FG_COLOR)
     elem_x = x_value_1
-    elem_step = 35 # 加寬屬性間距
+    elem_step = 45
+    val_offset = 15 # (修正) 增加 "地" 和 "10" 之間的距離 (原為 12)
     
     canvas.create_text(elem_x, y, text="地", anchor="w", fill=ELEMENT_COLOR_MAP["地"])
     vars_dict["elem_e_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["地"])
@@ -243,7 +244,7 @@ def _draw_person_canvas_items(canvas, x):
     vars_dict["elem_wi_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["風"])
     y += (y_step - 4)
 
-    canvas.create_line(x_label_1, y, x_value_2 + 45, y, fill="#DDDDDD") 
+    canvas.create_line(x_label_1, y, x_value_2 + 30, y, fill="#DDDDDD") # (原為 + 45)
     y += (y_step - 8)
 
     canvas.create_text(x_label_1, y, text="體力:", anchor="w", fill=DEFAULT_FG_COLOR)
@@ -265,13 +266,11 @@ def _draw_pet_canvas_items(canvas, x, pet_index):
     
     vars_dict = {} 
     y = 15
-    y_step = 19 
+    y_step = 24
     
-    # (★★★) (修正 #1) 
-    # 寵物也使用相同的 4 欄位網格，以確保等寬和對齊
     x_label_1 = x
-    x_value_1 = x + 35
-    x_label_2 = x + 105 # 轉生專用
+    x_value_1 = x + 45
+    x_label_2 = x + 100 # 轉生專用
     
     vars_dict["name"] = canvas.create_text(x_label_1, y, text=f"寵物{num_to_chinese(pet_index + 1)}", font=("Arial", 9, "bold"), anchor="w", fill=DEFAULT_FG_COLOR)
     y += y_step
@@ -307,8 +306,9 @@ def _draw_pet_canvas_items(canvas, x, pet_index):
 
     # (★★★) (修正 #1) 寵物的屬性也使用更寬的佈局
     canvas.create_text(x_label_1, y, text="屬性:", anchor="w", fill=DEFAULT_FG_COLOR)
-    elem_x = x_value_1
-    elem_step = 35 # 與人物對齊
+    elem_x = x_value_1 # 您的 x_value_1 (x + 45)
+    elem_step = 30 # (修正) 增加元素間的總寬度 (原為 35)
+    val_offset = 0 # (修正) 增加 "地" 和 "10" 之間的距離 (原為 12)
     
     canvas.create_text(elem_x, y, text="地", anchor="w", fill=ELEMENT_COLOR_MAP["地"])
     vars_dict["elem_e_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["地"])
