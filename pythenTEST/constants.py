@@ -65,7 +65,7 @@ REBIRTH_COLOR_MAP = {
     "未轉生": "black",
     "轉生壹": "#E5C100", 
     "轉生貳": "#35B315",
-    "轉生叁": "#45DDE2",
+    "轉生叁": "blue",
     "轉生肆": "red",
     "轉生伍": "purple",
     "轉生陸": "#8F8C8C"
@@ -102,3 +102,9 @@ SW_HIDE = 0
 SW_SHOW = 5 
 SW_MINIMIZE = 6
 SW_RESTORE = 9
+
+# --- 寵物狀態 Offsets (v4.3.6 新邏輯) ---
+CHAR_BATTLE_PET_OFFSET = 0x1041E352    # 戰鬥 (1 byte, 255=無, 0~4=PetIndex)
+PET_WAIT_FLAGS_BASE    = 0x1041E354    # 等待1 (1 byte, 1=等待), 每隻寵物偏移 +2 (等待2=56, 等待3=58...)
+CHAR_MAIL_PET_OFFSET   = 0x1041E35E    # 郵件 (1 byte, 255=無, 0~4=PetIndex)
+CHAR_RIDING_PET_OFFSET = 0x104218B4    # 騎寵 (1 byte, 255=無, 0~4=PetIndex)

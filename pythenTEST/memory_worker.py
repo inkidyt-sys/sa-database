@@ -192,9 +192,24 @@ class MemoryMonitorThread(threading.Thread):
             return None 
 
     def _update_and_read_pet_data(self, pm, base, old_pet_cache):
-        """(Worker 執行緒) 依賴快取狀態讀取寵物資料"""
+        """(Worker 執行緒) v4.3.8: 狀態文字簡化為單字"""
         new_pet_cache = [None] * 5
         pet_1_base_addr = base + PET_1_BASE_OFFSET
+        
+        # (★★★) 讀取全局狀態
+        try:
+            battle_val = pm.read_uchar(base + CHAR_BATTLE_PET_OFFSET)
+            battle_idx = battle_val if battle_val != 255 else -1
+
+            mail_val = pm.read_uchar(base + CHAR_MAIL_PET_OFFSET)
+            mail_idx = mail_val if mail_val != 255 else -1
+
+            ride_val = pm.read_uchar(base + CHAR_RIDING_PET_OFFSET)
+            ride_idx = ride_val if ride_val != 255 else -1
+
+        except Exception as e_global:
+            print(f"  > (PID: {pm.process_id}) 讀取全局寵物狀態失敗: {e_global}")
+            battle_idx, mail_idx, ride_idx = -1, -1, -1
         
         for p_idx in range(5):
             current_pet_base_addr = pet_1_base_addr + (p_idx * PET_STRUCT_SIZE)
@@ -206,15 +221,53 @@ class MemoryMonitorThread(threading.Thread):
                 exist_val = pm.read_uchar(exist_addr)
 
                 if exist_val == 1:
-                    # 寵物存在，讀取/更新資料
                     new_pet_cache[p_idx] = self._read_single_pet(pm, current_pet_base_addr)
+                    
+                    # (★★★) v4.3.8 狀態文字簡化
+                    try:
+                        status_text = "休" # 預設
+                        status_color_key = "未轉生" 
+
+                        # 優先順序 1: 騎乘
+                        if p_idx == ride_idx:
+                            status_text = "騎"
+                            status_color_key = "轉生伍"
+                        
+                        # 優先順序 2: 戰鬥
+                        elif p_idx == battle_idx:
+                            status_text = "戰"
+                            status_color_key = "轉生肆"
+
+                        # 優先順序 3: 郵件
+                        elif p_idx == mail_idx:
+                            status_text = "郵"
+                            status_color_key = "轉生貳"
+                        
+                        # 優先順序 4: 等待
+                        else:
+                            wait_addr = base + PET_WAIT_FLAGS_BASE + (p_idx * 2)
+                            wait_val = pm.read_uchar(wait_addr)
+                            
+                            if wait_val == 1:
+                                status_text = "等"
+                                status_color_key = "轉生叁"
+                            else:
+                                status_text = "休"
+                                status_color_key = "未轉生"
+                        
+                        if new_pet_cache[p_idx] is not None:
+                            new_pet_cache[p_idx]["status_text"] = status_text
+                            new_pet_cache[p_idx]["status_color_key"] = status_color_key
+                            
+                    except Exception as e_status:
+                         print(f"  > (PID: {pm.process_id}) 讀取寵物 {p_idx+1} 狀態細節失敗: {e_status}")
+                         if new_pet_cache[p_idx] is not None:
+                             new_pet_cache[p_idx]["status_text"] = "?"
+                             new_pet_cache[p_idx]["status_color_key"] = "未轉生"
                 
                 elif exist_val == 0 and cache_is_filled:
-                    # 寵物剛被移除
-                    print(f"  > (PID: {pm.process_id}) 寵物 {p_idx+1} 已移除，清空資料。")
                     new_pet_cache[p_idx] = None
                 else:
-                    # 寵物不存在，且快取本來就是空的
                     new_pet_cache[p_idx] = None
                 
             except Exception as e:
@@ -222,7 +275,7 @@ class MemoryMonitorThread(threading.Thread):
                 new_pet_cache[p_idx] = None
         
         return new_pet_cache
-
+    
     def _read_single_pet(self, pm, pet_base_addr):
         """(Worker 執行緒) 讀取單個寵物的詳細資料"""
         pet_data = {}
@@ -238,6 +291,7 @@ class MemoryMonitorThread(threading.Thread):
             lack_val = pm.read_int(pet_base_addr + PET_LACK_REL)
             pet_data["exp"] = exp_val
             
+            # 處理經驗值計算
             if lack_val == PET_LACK_EXP_MAX or lack_val == -1:
                 pet_data["lack"] = "--"
             else:
@@ -254,7 +308,7 @@ class MemoryMonitorThread(threading.Thread):
             f = pm.read_int(pet_base_addr + PET_ELEM_FIRE_REL)
             wi = pm.read_int(pet_base_addr + PET_ELEM_WIND_REL) 
             pet_data["element_str"] = format_elements(e, w, f, wi)
-            pet_data["element_raw"] = (e, w, f, wi)                 # <--- 這是顯示數字的關鍵
+            pet_data["element_raw"] = (e, w, f, wi) # 這是顯示屬性數值的關鍵
             
             return pet_data
             

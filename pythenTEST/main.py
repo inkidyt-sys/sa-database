@@ -44,8 +44,8 @@ class DSAHelperApp(tk.Tk):
         except Exception:
             self.scaling_factor = 1.0 
 
-        BASE_WIDTH = 1250 # (★★★) (修正 #1) 增加基礎寬度以容納 6 個寬欄位
-        BASE_HEIGHT = 210
+        BASE_WIDTH = 925
+        BASE_HEIGHT = 180
         BASE_LEFT_PANEL_WIDTH = 114 
 
         scaled_width = int(BASE_WIDTH * self.scaling_factor)
@@ -56,7 +56,7 @@ class DSAHelperApp(tk.Tk):
         # (★★★) (修正 #3) 動態高度變數
         self.current_base_width = scaled_width
         self.base_window_height = scaled_height 
-        self.non_content_height = int(180 * self.scaling_factor) # 估算: 標題/頁籤/日誌等非內容高度
+        self.non_content_height = int(20 * self.scaling_factor) # 估算: 標題/頁籤/日誌等非內容高度
         self.height_per_client_row = int((app_ui.CANVAS_ROW_HEIGHT + 20) * self.scaling_factor) # 每個客戶端 UI 的高度
 
         self.title("DSA新端輔助程式 v4.3 (寬網格/動態高度) by 石器推廣大使 陳財佑")
@@ -148,7 +148,7 @@ class DSAHelperApp(tk.Tk):
             new_height = self.base_window_height
         else:
             content_height = selected_count * self.height_per_client_row
-            new_height = self.non_content_height + content_height
+            new_height = self.non_content_height + content_height + 70
             
             # 限制最大/最小高度
             max_height = self.winfo_screenheight() - 50
@@ -247,7 +247,7 @@ class DSAHelperApp(tk.Tk):
             if slot["status"] == "已失效":
                 self.log(f"窗口 {i+1} (PID {slot['pid']}) 已被標記為失效, 清理...")
                 try:
-                    if slot["pm_handle"]: slot["pm_handle"].close()
+                    if slot["pm_handle"]: slot["pm_handle"].close_process()
                 except Exception: pass
                 self.client_data_slots[i] = self.create_empty_slot_data()
                 self.client_selection_vars[i].set(0)
@@ -362,7 +362,7 @@ class DSAHelperApp(tk.Tk):
             self.log(f"掃描時發生嚴重錯誤 (PID: {pid}): {e}")
             slot["status"] = "掃描失敗"
             if slot["pm_handle"]: 
-                slot["pm_handle"].close(); slot["pm_handle"] = None
+                slot["pm_handle"].close_process(); slot["pm_handle"] = None
 
 
     # --- (★★★) (修正 #1)「單一畫布」GUI 更新 (Main Thread) ---
@@ -468,11 +468,30 @@ class DSAHelperApp(tk.Tk):
             charm_color = "red" if charm_val <= 60 else DEFAULT_FG_COLOR
             canvas.itemconfigure(person_vars["charm"], text=str(charm_val), fill=charm_color)
 
+            # (★★★) 修正：動態屬性顯示 (v4.3.4)
             e, w, f, wi = data.get("element_raw", (0,0,0,0))
-            canvas.itemconfigure(person_vars["elem_e_val"], text=f"{e//10}" if e > 0 else "")
-            canvas.itemconfigure(person_vars["elem_w_val"], text=f"{w//10}" if w > 0 else "")
-            canvas.itemconfigure(person_vars["elem_f_val"], text=f"{f//10}" if f > 0 else "")
-            canvas.itemconfigure(person_vars["elem_wi_val"], text=f"{wi//10}" if wi > 0 else "")
+            
+            # 1. 建立要顯示的屬性列表
+            attributes_to_show = []
+            if e > 0: attributes_to_show.append(("地", e//10, ELEMENT_COLOR_MAP["地"]))
+            if w > 0: attributes_to_show.append(("水", w//10, ELEMENT_COLOR_MAP["水"]))
+            if f > 0: attributes_to_show.append(("火", f//10, ELEMENT_COLOR_MAP["火"]))
+            if wi > 0: attributes_to_show.append(("風", wi//10, ELEMENT_COLOR_MAP["風"]))
+
+            # 2. 填入 4 個 UI 槽位
+            for i in range(4):
+                lbl_key = f"elem_{i+1}_lbl"
+                val_key = f"elem_{i+1}_val"
+                
+                if i < len(attributes_to_show):
+                    # 有資料可填
+                    label, value, color = attributes_to_show[i]
+                    canvas.itemconfigure(person_vars[lbl_key], text=label, fill=color)
+                    canvas.itemconfigure(person_vars[val_key], text=f"{value}", fill=color)
+                else:
+                    # 清空多餘的槽位
+                    canvas.itemconfigure(person_vars[lbl_key], text="")
+                    canvas.itemconfigure(person_vars[val_key], text="")
         else:
             canvas.itemconfigure(person_vars["name"], text="人物")
             canvas.itemconfigure(person_vars["nickname"], text="稱號")
@@ -488,19 +507,33 @@ class DSAHelperApp(tk.Tk):
             canvas.itemconfigure(person_vars["spd"], text="--")
             canvas.itemconfigure(person_vars["rebirth"], text="--", fill=DEFAULT_FG_COLOR)
             canvas.itemconfigure(person_vars["charm"], text="--", fill=DEFAULT_FG_COLOR)
-            canvas.itemconfigure(person_vars["elem_e_val"], text="")
-            canvas.itemconfigure(person_vars["elem_w_val"], text="")
-            canvas.itemconfigure(person_vars["elem_f_val"], text="")
-            canvas.itemconfigure(person_vars["elem_wi_val"], text="")
+            
+            # (★★★) 修正：在 else 情況下清除所有 4 個槽位 (v4.3.4)
+            for i in range(4):
+                if f"elem_{i+1}_lbl" in person_vars:
+                    canvas.itemconfigure(person_vars[f"elem_{i+1}_lbl"], text="")
+                    canvas.itemconfigure(person_vars[f"elem_{i+1}_val"], text="")
 
 
     def _configure_pet_canvas(self, canvas, pet_vars, data, p_idx):
         """(單一畫布 優化) 更新寵物 Canvas Item ID"""
         default_pet_title = app_ui.num_to_chinese(p_idx + 1)
         if data:
+            # (★★★) v4.3.8 格式改為 [狀態]名字
             pet_name = data.get("name")
             display_name = pet_name if pet_name else f"寵物{default_pet_title}"
-            canvas.itemconfigure(pet_vars["name"], text=display_name)
+            
+            status_text = data.get("status_text", "休")
+            status_color_key = data.get("status_color_key", "未轉生") 
+            status_color = REBIRTH_COLOR_MAP.get(status_color_key, DEFAULT_FG_COLOR)
+            
+            # 組合字串: "[休]凱比特"
+            full_display_name = f"[{status_text}] {display_name}"
+            
+            # 更新名字 (含狀態) 並變色
+            canvas.itemconfigure(pet_vars["name"], text=full_display_name, fill=status_color)
+            
+            # 其餘數值更新
             canvas.itemconfigure(pet_vars["nickname"], text=data.get("nickname", ""))
             canvas.itemconfigure(pet_vars["lv"], text=data.get("lv", "--"))
             canvas.itemconfigure(pet_vars["exp"], text=data.get("exp", "--"))
@@ -518,13 +551,29 @@ class DSAHelperApp(tk.Tk):
             loyal_color = "red" if loyal_val <= 20 else DEFAULT_FG_COLOR
             canvas.itemconfigure(pet_vars["loyal"], text=str(loyal_val), fill=loyal_color)
 
+            # (★★★) 動態屬性顯示
             e, w, f, wi = data.get("element_raw", (0,0,0,0))
-            canvas.itemconfigure(pet_vars["elem_e_val"], text=f"{e//10}" if e > 0 else "")
-            canvas.itemconfigure(pet_vars["elem_w_val"], text=f"{w//10}" if w > 0 else "")
-            canvas.itemconfigure(pet_vars["elem_f_val"], text=f"{f//10}" if f > 0 else "")
-            canvas.itemconfigure(pet_vars["elem_wi_val"], text=f"{wi//10}" if wi > 0 else "")
+            
+            attributes_to_show = []
+            if e > 0: attributes_to_show.append(("地", e//10, ELEMENT_COLOR_MAP["地"]))
+            if w > 0: attributes_to_show.append(("水", w//10, ELEMENT_COLOR_MAP["水"]))
+            if f > 0: attributes_to_show.append(("火", f//10, ELEMENT_COLOR_MAP["火"]))
+            if wi > 0: attributes_to_show.append(("風", wi//10, ELEMENT_COLOR_MAP["風"]))
+
+            for i in range(4):
+                lbl_key = f"elem_{i+1}_lbl"
+                val_key = f"elem_{i+1}_val"
+                
+                if i < len(attributes_to_show):
+                    label, value, color = attributes_to_show[i]
+                    canvas.itemconfigure(pet_vars[lbl_key], text=label, fill=color)
+                    canvas.itemconfigure(pet_vars[val_key], text=f"{value}", fill=color)
+                else:
+                    canvas.itemconfigure(pet_vars[lbl_key], text="")
+                    canvas.itemconfigure(pet_vars[val_key], text="")
         else:
-            canvas.itemconfigure(pet_vars["name"], text=f"寵物{default_pet_title}")
+            # (★★★) 預設狀態
+            canvas.itemconfigure(pet_vars["name"], text=f"寵物{default_pet_title}", fill=DEFAULT_FG_COLOR)
             canvas.itemconfigure(pet_vars["nickname"], text="")
             canvas.itemconfigure(pet_vars["lv"], text="--")
             canvas.itemconfigure(pet_vars["exp"], text="--")
@@ -535,10 +584,11 @@ class DSAHelperApp(tk.Tk):
             canvas.itemconfigure(pet_vars["agi"], text="--")
             canvas.itemconfigure(pet_vars["rebirth"], text="--", fill=DEFAULT_FG_COLOR)
             canvas.itemconfigure(pet_vars["loyal"], text="--", fill=DEFAULT_FG_COLOR)
-            canvas.itemconfigure(pet_vars["elem_e_val"], text="")
-            canvas.itemconfigure(pet_vars["elem_w_val"], text="")
-            canvas.itemconfigure(pet_vars["elem_f_val"], text="")
-            canvas.itemconfigure(pet_vars["elem_wi_val"], text="")
+            
+            for i in range(4):
+                if f"elem_{i+1}_lbl" in pet_vars:
+                    canvas.itemconfigure(pet_vars[f"elem_{i+1}_lbl"], text="")
+                    canvas.itemconfigure(pet_vars[f"elem_{i+1}_val"], text="")
 
 
     def update_client_list_ui(self, slot_index=None):
@@ -705,7 +755,8 @@ class DSAHelperApp(tk.Tk):
                 pm.read_int(slot["module_base"]) 
             except Exception:
                 self.log(f"窗口 {i+1} (PID {slot['pid']}) 句柄已失效, 跳過還原。")
-                try: pm.close()
+                try:
+                    pm.close_process()
                 except: pass
                 continue
             
@@ -723,7 +774,7 @@ class DSAHelperApp(tk.Tk):
             except Exception as e:
                 self.log(f"還原 PID {slot['pid']} 時出錯: {e}")
             try:
-                pm.close()
+                pm.close_process()
                 self.log(f"  > (PID: {slot['pid']}) 句柄已關閉。")
             except Exception as e:
                 self.log(f"關閉句柄 (PID: {slot['pid']}) 時出錯: {e}")

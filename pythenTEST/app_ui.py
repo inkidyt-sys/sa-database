@@ -8,7 +8,7 @@ from constants import MAX_CLIENTS, DEFAULT_FG_COLOR, ELEMENT_COLOR_MAP
 from utils import num_to_chinese
 
 # (★★★) (修正 #3) Canvas 基礎高度
-CANVAS_ROW_HEIGHT = 140 
+CANVAS_ROW_HEIGHT = 115
 
 # --- 靜態 UI 建立函式 ---
 
@@ -184,14 +184,13 @@ def _draw_person_canvas_items(canvas, x):
     
     vars_dict = {} 
     y = 15
-    y_step = 24
+    y_step = 20 # (套用您的行距)
     
+    # (套用您的座標)
     x_label_1 = x
     x_value_1 = x + 45
-    
-    # (★★★) 修正座標：將第 2 欄向右移動，避免重疊
-    x_label_2 = x + 100 # (原為 105) 
-    x_value_2 = x + 145 # (原為 140)
+    x_label_2 = x + 100 
+    x_value_2 = x + 145 
     
     vars_dict["name"] = canvas.create_text(x_label_1, y, text="人物", font=("Arial", 9, "bold"), anchor="w", fill=DEFAULT_FG_COLOR)
     y += y_step
@@ -224,28 +223,31 @@ def _draw_person_canvas_items(canvas, x):
     y += y_step
     
     canvas.create_text(x_label_1, y, text="屬性:", anchor="w", fill=DEFAULT_FG_COLOR)
-    elem_x = x_value_1
-    elem_step = 45
-    val_offset = 15 # (修正) 增加 "地" 和 "10" 之間的距離 (原為 12)
     
-    canvas.create_text(elem_x, y, text="地", anchor="w", fill=ELEMENT_COLOR_MAP["地"])
-    vars_dict["elem_e_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["地"])
-    elem_x += elem_step
+    # (★★★) 以下是【修正後】的動態屬性佈局 (v4.3.4)
+    elem_x = x_value_1  # 繼承您的 x_value_1 (x + 45)
     
-    canvas.create_text(elem_x, y, text="水", anchor="w", fill=ELEMENT_COLOR_MAP["水"])
-    vars_dict["elem_w_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["水"])
-    elem_x += elem_step
+    # 標籤與數值的間距
+    val_offset = 17
+    # 每個屬性槽之間的總間距
+    elem_step = 36   
+    
+    for i in range(4):
+        # 建立 4 組 (標籤, 數值) 的文字物件 (預設為空)
+        lbl_key = f"elem_{i+1}_lbl"
+        val_key = f"elem_{i+1}_val"
+        
+        current_x = elem_x + (i * elem_step)
+        
+        vars_dict[lbl_key] = canvas.create_text(current_x, y, text="", anchor="w", fill=DEFAULT_FG_COLOR)
+        vars_dict[val_key] = canvas.create_text(current_x + val_offset, y, text="", anchor="w", fill=DEFAULT_FG_COLOR)
+    
+    # --- 繼續原來的程式碼 ---
+    y += (y_step - 4) # y_step 24 - 4 = 20
 
-    canvas.create_text(elem_x, y, text="火", anchor="w", fill=ELEMENT_COLOR_MAP["火"])
-    vars_dict["elem_f_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["火"])
-    elem_x += elem_step
-    
-    canvas.create_text(elem_x, y, text="風", anchor="w", fill=ELEMENT_COLOR_MAP["風"])
-    vars_dict["elem_wi_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["風"])
-    y += (y_step - 4)
-
-    canvas.create_line(x_label_1, y, x_value_2 + 30, y, fill="#DDDDDD") # (原為 + 45)
-    y += (y_step - 8)
+    # (★★★) 修正分隔線終點 (配合您的 x_value_2 = x + 145)
+    canvas.create_line(x_label_1, y, x_value_2 + 36, y, fill="#DDDDDD") 
+    y += (y_step - 8) # y_step 24 - 8 = 16
 
     canvas.create_text(x_label_1, y, text="體力:", anchor="w", fill=DEFAULT_FG_COLOR)
     vars_dict["vit"] = canvas.create_text(x_value_1, y, text="--", anchor="w", fill=DEFAULT_FG_COLOR)
@@ -266,16 +268,19 @@ def _draw_pet_canvas_items(canvas, x, pet_index):
     
     vars_dict = {} 
     y = 15
-    y_step = 24
+    y_step = 20 # (套用您的行距)
     
+    # (套用您的座標)
     x_label_1 = x
     x_value_1 = x + 45
     x_label_2 = x + 100 # 轉生專用
     
+    # (★★★) v4.3.7 狀態合併至名字：這裡只建立 name 物件
     vars_dict["name"] = canvas.create_text(x_label_1, y, text=f"寵物{num_to_chinese(pet_index + 1)}", font=("Arial", 9, "bold"), anchor="w", fill=DEFAULT_FG_COLOR)
     y += y_step
     
     vars_dict["nickname"] = canvas.create_text(x_label_1, y, text="", anchor="w", fill=DEFAULT_FG_COLOR)
+    # (★★★) 移除舊的 status 欄位
     y += y_step
 
     canvas.create_text(x_label_1, y, text="LV:", anchor="w", fill=DEFAULT_FG_COLOR)
@@ -306,24 +311,26 @@ def _draw_pet_canvas_items(canvas, x, pet_index):
 
     # (★★★) (修正 #1) 寵物的屬性也使用更寬的佈局
     canvas.create_text(x_label_1, y, text="屬性:", anchor="w", fill=DEFAULT_FG_COLOR)
-    elem_x = x_value_1 # 您的 x_value_1 (x + 45)
-    elem_step = 30 # (修正) 增加元素間的總寬度 (原為 35)
-    val_offset = 0 # (修正) 增加 "地" 和 "10" 之間的距離 (原為 12)
     
-    canvas.create_text(elem_x, y, text="地", anchor="w", fill=ELEMENT_COLOR_MAP["地"])
-    vars_dict["elem_e_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["地"])
-    elem_x += elem_step
+    # (★★★) 以下是【修正後】的動態屬性佈局 (v4.3.4)
+    elem_x = x_value_1  # 繼承您的 x_value_1 (x + 45)
     
-    canvas.create_text(elem_x, y, text="水", anchor="w", fill=ELEMENT_COLOR_MAP["水"])
-    vars_dict["elem_w_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["水"])
-    elem_x += elem_step
+    # 標籤與數值的間距
+    val_offset = 17
+    # 每個屬性槽之間的總間距
+    elem_step = 36
+    
+    for i in range(4):
+        # 建立 4 組 (標籤, 數值) 的文字物件 (預設為空)
+        lbl_key = f"elem_{i+1}_lbl"
+        val_key = f"elem_{i+1}_val"
+        
+        current_x = elem_x + (i * elem_step)
+        
+        vars_dict[lbl_key] = canvas.create_text(current_x, y, text="", anchor="w", fill=DEFAULT_FG_COLOR)
+        vars_dict[val_key] = canvas.create_text(current_x + val_offset, y, text="", anchor="w", fill=DEFAULT_FG_COLOR)
 
-    canvas.create_text(elem_x, y, text="火", anchor="w", fill=ELEMENT_COLOR_MAP["火"])
-    vars_dict["elem_f_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["火"])
-    elem_x += elem_step
-    
-    canvas.create_text(elem_x, y, text="風", anchor="w", fill=ELEMENT_COLOR_MAP["風"])
-    vars_dict["elem_wi_val"] = canvas.create_text(elem_x + 12, y, text="", anchor="w", fill=ELEMENT_COLOR_MAP["風"])
+    # --- 繼續原來的程式碼 ---
     y += y_step
 
     canvas.create_text(x_label_1, y, text="忠誠:", anchor="w", fill=DEFAULT_FG_COLOR)
