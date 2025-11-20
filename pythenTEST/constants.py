@@ -1,5 +1,5 @@
 # constants.py
-# 儲存所有靜態記憶體位址、偏移量、AOB 特徵碼和對應表
+# 儲存靜態記憶體位址、偏移量、AOB 特徵碼和對應表
 
 PROCESS_NAME = "sadsa.exe"
 MAX_CLIENTS = 6
@@ -30,9 +30,9 @@ CHAR_STR_OFFSET = 0x1041E2CC        # Int (腕力)
 CHAR_STA_OFFSET = 0x1041E2D0        # Int (耐力)
 CHAR_SPD_OFFSET = 0x1041E2D4        # Int (速度)
 
-# --- 寵物資料 Offsets (v2.4 Struct 邏輯修正) ---
-PET_1_BASE_OFFSET = 0x104252A0      # 寵物 1 結構的基址 (以 HP_CUR 為準)
-PET_STRUCT_SIZE = 0xFE8             # 寵物 1 到 2 的偏移
+# --- 寵物資料 Offsets ---
+PET_1_BASE_OFFSET = 0x104252A0      # 寵物 1 結構的基址
+PET_STRUCT_SIZE = 0xFE8             # 寵物結構大小間距
 
 # (相對於 PET_1_BASE_OFFSET 的偏移量)
 PET_HP_CUR_REL = 0x0
@@ -49,9 +49,9 @@ PET_ELEM_WATER_REL = 0x30
 PET_ELEM_FIRE_REL = 0x34
 PET_ELEM_WIND_REL = 0x38 
 PET_REBIRTH_REL = 0x40
-PET_NAME_REL = 0x4C                 # (0x52EC - 0x52A0 = 0x4C)
-PET_NICKNAME_REL = 0x5D             # (0x52FD - 0x52A0 = 0x5D)
-PET_EXIST_REL = 0x6E                # (0x530E - 0x52A0 = 0x6E)
+PET_NAME_REL = 0x4C                 
+PET_NICKNAME_REL = 0x5D             
+PET_EXIST_REL = 0x6E                
 
 # 轉生對應表
 REBIRTH_MAP = {
@@ -103,8 +103,8 @@ SW_SHOW = 5
 SW_MINIMIZE = 6
 SW_RESTORE = 9
 
-# --- 寵物狀態 Offsets (v4.3.6 新邏輯) ---
-CHAR_BATTLE_PET_OFFSET = 0x1041E352    # 戰鬥 (1 byte, 255=無, 0~4=PetIndex)
-PET_WAIT_FLAGS_BASE    = 0x1041E354    # 等待1 (1 byte, 1=等待), 每隻寵物偏移 +2 (等待2=56, 等待3=58...)
-CHAR_MAIL_PET_OFFSET   = 0x1041E35E    # 郵件 (1 byte, 255=無, 0~4=PetIndex)
-CHAR_RIDING_PET_OFFSET = 0x104218B4    # 騎寵 (1 byte, 255=無, 0~4=PetIndex)
+# --- 寵物狀態 Offsets ---
+CHAR_BATTLE_PET_OFFSET = 0x1041E352    # 戰鬥
+PET_WAIT_FLAGS_BASE    = 0x1041E354    # 等待1
+CHAR_MAIL_PET_OFFSET   = 0x1041E35E    # 郵件
+CHAR_RIDING_PET_OFFSET = 0x104218B4    # 騎寵

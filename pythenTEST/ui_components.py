@@ -28,7 +28,6 @@ class ScrollableFrame(ttk.Frame):
         self.canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
         self.inner_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
         
-        # (v3.9 修正) 只綁定需要滾動的 3 個主要元件。
         self.bind("<MouseWheel>", self.on_mouse_wheel)
         self.canvas.bind("<MouseWheel>", self.on_mouse_wheel)
         self.inner_frame.bind("<MouseWheel>", self.on_mouse_wheel)

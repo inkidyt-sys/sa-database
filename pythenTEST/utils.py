@@ -6,7 +6,7 @@ import ctypes
 try:
     import ctypes.wintypes
 except ImportError:
-    pass # 稍後在 is_admin 中處理
+    pass 
     
 import pymem
 
@@ -18,7 +18,7 @@ def is_admin():
         try:
             return ctypes.windll.shell32.IsUserAnAdmin() != 0
         except Exception:
-            return False # 如果 ctypes 也失敗，假定不是管理員
+            return False
 
 def num_to_chinese(num):
     """將數字 1-5 轉換為中文"""

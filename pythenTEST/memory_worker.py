@@ -1,5 +1,5 @@
 # memory_worker.py
-# 獨立的執行緒，負責所有 Pymem 讀取操作，避免 UI 卡頓
+# 獨立執行緒，負責 Pymem 讀取操作
 
 import threading
 import time
@@ -7,7 +7,6 @@ import queue
 import pymem
 import psutil
 
-# 從項目檔案中導入
 from constants import *
 from utils import read_big5_string, format_elements
 
@@ -16,11 +15,11 @@ class MemoryMonitorThread(threading.Thread):
         super().__init__()
         self.data_queue = data_queue           # (Worker -> UI) 傳送資料
         self.command_queue = command_queue     # (UI -> Worker) 接收命令
-        self.client_data_slots = client_data_slots_ref # (Ref) 對主線程 slot 的引用
+        self.client_data_slots = client_data_slots_ref 
         
-        self.stopped = threading.Event()       # 用於停止執行緒的信號
-        self.refresh_interval_sec = 3.0        # 預設刷新率
-        self.daemon = True                     # 確保主程式退出時此執行緒也會退出
+        self.stopped = threading.Event()       
+        self.refresh_interval_sec = 3.0        
+        self.daemon = True                     
 
     def stop(self):
         """設置停止信號"""
@@ -38,7 +37,7 @@ class MemoryMonitorThread(threading.Thread):
         while not self.stopped.is_set():
             start_time = time.time()
             
-            # 1. 檢查來自 UI 的命令 (例如：停止、改變刷新率)
+            # 1. 檢查命令
             try:
                 command = self.command_queue.get_nowait()
                 if command.get("action") == "stop":
@@ -46,20 +45,18 @@ class MemoryMonitorThread(threading.Thread):
                     continue
                 if command.get("action") == "set_rate":
                     rate_val = command.get("value")
-                    if rate_val is None: # "不刷新"
+                    if rate_val is None: 
                          self.set_refresh_rate(float('inf'))
                     else:
                         self.set_refresh_rate(rate_val)
-                        
             except queue.Empty:
-                pass # 沒有命令，繼續執行
+                pass 
             
-            # 如果設為 "不刷新"，則在此處睡眠並跳過
             if self.refresh_interval_sec == float('inf'):
-                time.sleep(1) # 保持執行緒活躍以響應命令
+                time.sleep(1)
                 continue
 
-            # 2. 執行核心監控 (I/O 操作)
+            # 2. 執行監控
             full_update_data = []
             is_logging_in = False
 
@@ -71,39 +68,28 @@ class MemoryMonitorThread(threading.Thread):
                 if state in (1, 2, 3) or state == "unbound":
                     is_logging_in = True
 
-            # 3. 將整包資料發送回 UI 執行緒
+            # 3. 發送資料
             if not self.stopped.is_set():
                 self.data_queue.put(full_update_data)
 
             # 4. 睡眠控制
             elapsed = time.time() - start_time
-            
-            # 如果在登入中，加快刷新率 (最多 1s)
             target_sleep = self.refresh_interval_sec
             if is_logging_in and target_sleep > 1.0:
                 target_sleep = 1.0
-                
             sleep_duration = max(0, target_sleep - elapsed)
-            
-            # 使用 wait() 而非 sleep()，這樣它可以被 stop() 信號立即中斷
             self.stopped.wait(sleep_duration)
 
         print("[Worker] 記憶體監控執行緒已停止。")
 
-
     def _monitor_slot(self, slot_index):
-        """
-        (Worker 執行緒)
-        監控單個 slot，執行所有 pymem 讀取。
-        返回一個包含 *最新資料* 的字典，用於更新 UI 執行緒的快取。
-        """
+        """監控單個 slot，執行所有 pymem 讀取"""
         slot = self.client_data_slots[slot_index]
         pm = slot.get("pm_handle")
         base = slot.get("module_base")
 
-        # --- 返回的資料包 ---
         update_package = {
-            "status": slot["status"], # 預設為當前狀態
+            "status": slot["status"], 
             "game_state": "unbound",
             "account_name": "",
             "char_data_cache": None,
@@ -112,17 +98,14 @@ class MemoryMonitorThread(threading.Thread):
 
         if not pm or not base or not slot["pid"]:
             update_package["status"] = "未綁定"
-            # (v3.6 邏輯) 如果句柄失效，主線程的 on_bind_click 會負責清理
-            # 這裡我們只報告狀態
             return update_package
 
         try:
-            # (v3.6 核心) 使用輕量級 read 測試句柄是否有效
             state_addr = base + GAME_STATE_OFFSET
             game_state = pm.read_int(state_addr)
             
             update_package["game_state"] = game_state
-            update_package["status"] = "已綁定" # 讀取成功
+            update_package["status"] = "已綁定"
             
             new_display_text = f"狀態: {game_state}"
             
@@ -132,7 +115,6 @@ class MemoryMonitorThread(threading.Thread):
                 new_display_text = "選擇角色"
             elif game_state > 3:
                 try:
-                    # 讀取帳號
                     account_addr = base + ACCOUNT_STRING_OFFSET
                     raw_string = pm.read_string(account_addr, 100) 
                     account_name = raw_string.split("www.longzor")[0]
@@ -142,7 +124,6 @@ class MemoryMonitorThread(threading.Thread):
                     print(f"  > (PID: {slot['pid']}) 讀取帳號字串失敗: {e_str}")
                     new_display_text = "登入完成"
                 
-                # 讀取人寵資料
                 update_package["char_data_cache"] = self._read_character_data(pm, base)
                 update_package["pet_data_cache"] = self._update_and_read_pet_data(pm, base, slot["pet_data_cache"])
 
@@ -150,18 +131,13 @@ class MemoryMonitorThread(threading.Thread):
             return update_package
 
         except Exception as e:
-            # (v3.6 邏輯) 讀取失敗，進程可能已關閉
             print(f"[Worker] 監控窗口 {slot_index+1} (PID: {slot['pid']}) 時出錯: {e}")
-            update_package["status"] = "已失效" # 標記為已失效
+            update_package["status"] = "已失效" 
             update_package["game_state"] = "unbound"
-            
-            # (重要) 主線程的 on_bind_click 會在下次點擊時
-            # 偵測到這個 "已失效" 狀態，並清理句柄。
-            # 執行緒不應主動關閉主線程的句柄。
             return update_package
 
     def _read_character_data(self, pm, base):
-        """(Worker 執行緒) 讀取所有人物資料"""
+        """讀取所有人物資料"""
         data = {}
         try:
             data["name"] = read_big5_string(pm, base + CHAR_NAME_OFFSET, 16)
@@ -179,9 +155,8 @@ class MemoryMonitorThread(threading.Thread):
             w = pm.read_int(base + CHAR_ELEM_WATER_OFFSET)
             f = pm.read_int(base + CHAR_ELEM_FIRE_OFFSET)
             wi = pm.read_int(base + CHAR_ELEM_WIND_OFFSET)
-            # (★★★) (修正 #2) 確保這兩行都存在
             data["element_str"] = format_elements(e, w, f, wi)
-            data["element_raw"] = (e, w, f, wi)                 # <--- 這是顯示數字的關鍵
+            data["element_raw"] = (e, w, f, wi)
             data["vit"] = pm.read_int(base + CHAR_VIT_OFFSET)
             data["str"] = pm.read_int(base + CHAR_STR_OFFSET)
             data["sta"] = pm.read_int(base + CHAR_STA_OFFSET)
@@ -192,11 +167,10 @@ class MemoryMonitorThread(threading.Thread):
             return None 
 
     def _update_and_read_pet_data(self, pm, base, old_pet_cache):
-        """(Worker 執行緒) v4.3.8: 狀態文字簡化為單字"""
+        """讀取寵物資料與狀態"""
         new_pet_cache = [None] * 5
         pet_1_base_addr = base + PET_1_BASE_OFFSET
         
-        # (★★★) 讀取全局狀態
         try:
             battle_val = pm.read_uchar(base + CHAR_BATTLE_PET_OFFSET)
             battle_idx = battle_val if battle_val != 255 else -1
@@ -214,46 +188,27 @@ class MemoryMonitorThread(threading.Thread):
         for p_idx in range(5):
             current_pet_base_addr = pet_1_base_addr + (p_idx * PET_STRUCT_SIZE)
             exist_addr = current_pet_base_addr + PET_EXIST_REL
-            
             cache_is_filled = (old_pet_cache[p_idx] is not None)
             
             try:
                 exist_val = pm.read_uchar(exist_addr)
-
                 if exist_val == 1:
                     new_pet_cache[p_idx] = self._read_single_pet(pm, current_pet_base_addr)
-                    
-                    # (★★★) v4.3.8 狀態文字簡化
                     try:
-                        status_text = "休" # 預設
+                        status_text = "休" 
                         status_color_key = "未轉生" 
 
-                        # 優先順序 1: 騎乘
                         if p_idx == ride_idx:
-                            status_text = "騎"
-                            status_color_key = "轉生伍"
-                        
-                        # 優先順序 2: 戰鬥
+                            status_text = "騎"; status_color_key = "轉生伍"
                         elif p_idx == battle_idx:
-                            status_text = "戰"
-                            status_color_key = "轉生肆"
-
-                        # 優先順序 3: 郵件
+                            status_text = "戰"; status_color_key = "轉生肆"
                         elif p_idx == mail_idx:
-                            status_text = "郵"
-                            status_color_key = "轉生貳"
-                        
-                        # 優先順序 4: 等待
+                            status_text = "郵"; status_color_key = "轉生貳"
                         else:
                             wait_addr = base + PET_WAIT_FLAGS_BASE + (p_idx * 2)
                             wait_val = pm.read_uchar(wait_addr)
-                            
                             if wait_val == 1:
-                                status_text = "等"
-                                status_color_key = "轉生叁"
-                            else:
-                                status_text = "休"
-                                status_color_key = "未轉生"
+                                status_text = "等"; status_color_key = "轉生叁"
                         
                         if new_pet_cache[p_idx] is not None:
                             new_pet_cache[p_idx]["status_text"] = status_text
@@ -263,21 +218,17 @@ class MemoryMonitorThread(threading.Thread):
                          print(f"  > (PID: {pm.process_id}) 讀取寵物 {p_idx+1} 狀態細節失敗: {e_status}")
                          if new_pet_cache[p_idx] is not None:
                              new_pet_cache[p_idx]["status_text"] = "?"
-                             new_pet_cache[p_idx]["status_color_key"] = "未轉生"
-                
                 elif exist_val == 0 and cache_is_filled:
                     new_pet_cache[p_idx] = None
                 else:
                     new_pet_cache[p_idx] = None
-                
             except Exception as e:
-                print(f"  > (PID: {pm.process_id}) 讀取寵物 {p_idx+1} *存在狀態*時出錯: {e}")
+                print(f"  > (PID: {pm.process_id}) 讀取寵物 {p_idx+1} 存在狀態時出錯: {e}")
                 new_pet_cache[p_idx] = None
-        
         return new_pet_cache
     
     def _read_single_pet(self, pm, pet_base_addr):
-        """(Worker 執行緒) 讀取單個寵物的詳細資料"""
+        """讀取單個寵物的詳細數值"""
         pet_data = {}
         try:
             pet_data["name"] = read_big5_string(pm, pet_base_addr + PET_NAME_REL, 16)
@@ -291,7 +242,6 @@ class MemoryMonitorThread(threading.Thread):
             lack_val = pm.read_int(pet_base_addr + PET_LACK_REL)
             pet_data["exp"] = exp_val
             
-            # 處理經驗值計算
             if lack_val == PET_LACK_EXP_MAX or lack_val == -1:
                 pet_data["lack"] = "--"
             else:
@@ -308,10 +258,8 @@ class MemoryMonitorThread(threading.Thread):
             f = pm.read_int(pet_base_addr + PET_ELEM_FIRE_REL)
             wi = pm.read_int(pet_base_addr + PET_ELEM_WIND_REL) 
             pet_data["element_str"] = format_elements(e, w, f, wi)
-            pet_data["element_raw"] = (e, w, f, wi) # 這是顯示屬性數值的關鍵
-            
+            pet_data["element_raw"] = (e, w, f, wi) 
             return pet_data
-            
         except Exception as e:
-            print(f"  > (PID: {pm.process_id}) 讀取寵物 *詳細資料*時出錯: {e}")
+            print(f"  > (PID: {pm.process_id}) 讀取寵物詳細資料時出錯: {e}")
             return None
