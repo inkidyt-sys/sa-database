@@ -83,7 +83,7 @@ class MemoryMonitorThread(threading.Thread):
         print("[Worker] 記憶體監控執行緒已停止。")
 
     def _monitor_slot(self, slot_index):
-        """監控單個 slot，執行所有 pymem 讀取"""
+        """(Worker) 監控單個 slot (強制除錯版)"""
         slot = self.client_data_slots[slot_index]
         pm = slot.get("pm_handle")
         base = slot.get("module_base")
@@ -93,7 +93,9 @@ class MemoryMonitorThread(threading.Thread):
             "game_state": "unbound",
             "account_name": "",
             "char_data_cache": None,
-            "pet_data_cache": [None] * 5
+            "pet_data_cache": [None] * 5,
+            "item_data_cache": {},
+            "battle_data_cache": {} 
         }
 
         if not pm or not base or not slot["pid"]:
@@ -105,11 +107,18 @@ class MemoryMonitorThread(threading.Thread):
             game_state = pm.read_int(state_addr)
             
             update_package["game_state"] = game_state
-            update_package["status"] = "已綁定"
+            update_package["status"] = "已綁定" 
             
+            # (除錯) 當狀態大於 3 時，印出狀態碼，確認是否有變成 10
+            # 為了避免洗頻，您可以只看這行
+            if game_state >= 10:
+                print(f"[Debug] 窗口 {slot_index+1} (PID {slot['pid']}) 當前狀態: {game_state}")
+
             new_display_text = f"狀態: {game_state}"
             
-            if game_state in (1, 2):
+            if game_state == 11:
+                new_display_text = "斷線"
+            elif game_state in (1, 2):
                 new_display_text = "登入中"
             elif game_state == 3:
                 new_display_text = "選擇角色"
@@ -120,21 +129,192 @@ class MemoryMonitorThread(threading.Thread):
                     account_name = raw_string.split("www.longzor")[0]
                     if not account_name: account_name = "登入完成"
                     new_display_text = account_name
-                except Exception as e_str:
-                    print(f"  > (PID: {slot['pid']}) 讀取帳號字串失敗: {e_str}")
+                except Exception:
                     new_display_text = "登入完成"
                 
                 update_package["char_data_cache"] = self._read_character_data(pm, base)
                 update_package["pet_data_cache"] = self._update_and_read_pet_data(pm, base, slot["pet_data_cache"])
+                update_package["item_data_cache"] = self._read_items(pm, base)
+                
+                # (除錯) 只要狀態 >= 10 就嘗試讀取戰鬥數據 (包含戰鬥中與戰鬥結束結算畫面等)
+                # 這樣可以確保即使狀態不是 10 也能測試讀取
+                if game_state == 10:
+                    print(f"[Debug] 偵測到戰鬥狀態 (10)，準備讀取數據...")
+                    update_package["battle_data_cache"] = self._read_battle_data(pm, base)
 
             update_package["account_name"] = new_display_text
             return update_package
 
         except Exception as e:
-            print(f"[Worker] 監控窗口 {slot_index+1} (PID: {slot['pid']}) 時出錯: {e}")
             update_package["status"] = "已失效" 
             update_package["game_state"] = "unbound"
             return update_package
+
+    def _read_battle_data(self, pm, base):
+        """(Worker) 讀取並解析戰鬥字串 (固定間距 13)"""
+        battle_map = {}
+        try:
+            # 1. 讀取長字串
+            raw_str = read_big5_string(pm, base + BATTLE_STRING_OFFSET, 4096)
+            if not raw_str: return {}
+
+            # 2. 分割字串
+            tokens = raw_str.split('|')
+            
+            # 每一組資料有 13 個欄位 (根據您的說明)
+            # 0:編號, 1:名稱, 2:稱號, 3:編號A, 4:等級, 5:現血, 6:最大血
+            # 7:?, 8:?, 9:騎寵名, 10:騎寵等級, 11:騎寵現血, 12:騎寵最大血
+            step = 13
+            
+            for i in range(0, len(tokens), step):
+                # 確保這一組有完整的 13 個欄位 (避免最後一段不完整導致報錯)
+                if i + 12 >= len(tokens):
+                    break
+                
+                try:
+                    # --- 解析人物 ---
+                    # 欄位 1: 名稱
+                    unit_name = tokens[i+1]
+                    
+                    # 過濾雜訊 (名稱為空或 "0" 則跳過)
+                    if not unit_name or unit_name == "0": 
+                        continue
+
+                    # 欄位 0: 編號 (ID)
+                    pos_id = int(tokens[i], 16)
+                    
+                    # 欄位 4, 5, 6: 等級, 現血, 最大血 (Hex)
+                    lv = int(tokens[i+4], 16)
+                    cur_hp = int(tokens[i+5], 16)
+                    max_hp = int(tokens[i+6], 16)
+                    
+                    display_str = f"[{lv}]{unit_name} ({cur_hp}/{max_hp})"
+
+                    # --- 解析騎寵 ---
+                    # 欄位 9: 騎寵名稱
+                    pet_name = tokens[i+9]
+                    
+                    # 判斷是否有騎寵 (有名稱且不是 "0")
+                    if pet_name and pet_name != "0":
+                        try:
+                            # 欄位 10, 11, 12: 騎寵等級, 現血, 最大血 (Hex)
+                            pet_lv = int(tokens[i+10], 16)
+                            pet_cur = int(tokens[i+11], 16)
+                            pet_max = int(tokens[i+12], 16)
+                            
+                            display_str += f" ;[{pet_lv}]{pet_name} ({pet_cur}/{pet_max})"
+                        except ValueError:
+                            pass # 騎寵數值解析失敗則忽略騎寵部分
+                    
+                    # 存入 Map
+                    battle_map[pos_id] = display_str
+
+                except (ValueError, IndexError):
+                    # 解析單一隻失敗 (例如數值不是 Hex)，跳過該隻，繼續下一組
+                    continue
+
+            return battle_map
+
+        except Exception as e:
+            print(f"[Worker] 讀取戰鬥數據失敗: {e}")
+            return {}
+        
+    # --- memory_worker.py 修改部分 ---
+
+    def _read_battle_data(self, pm, base):
+        """(Worker) 讀取並解析戰鬥字串 (固定間距 13 - 修正版)"""
+        battle_map = {}
+        try:
+            # 1. 讀取長字串
+            raw_str = read_big5_string(pm, base + BATTLE_STRING_OFFSET, 4096)
+            if not raw_str: return {}
+
+            # 2. 分割字串
+            tokens = raw_str.split('|')
+            
+            # 每一組資料有 13 個欄位
+            # 0:編號, 1:名稱, 2:稱號, 3:編號A, 4:等級, 5:現血, 6:最大血
+            # 7:?, 8:?, 9:騎寵名, 10:騎寵等級, 11:騎寵現血, 12:騎寵最大血
+            step = 13
+            
+            for i in range(0, len(tokens), step):
+                # 確保這一組有完整的 13 個欄位
+                if i + 12 >= len(tokens):
+                    break
+                
+                try:
+                    # --- 解析人物 ---
+                    unit_name = tokens[i+1] # 名稱
+                    
+                    # 過濾雜訊 (名稱為空或 "0" 則跳過)
+                    if not unit_name or unit_name == "0": 
+                        continue
+
+                    pos_id = int(tokens[i], 16) # 編號
+                    
+                    lv = int(tokens[i+4], 16) # 等級
+                    cur_hp = int(tokens[i+5], 16) # 現血
+                    max_hp = int(tokens[i+6], 16) # 最大血
+                    
+                    display_str = f"[{lv}]{unit_name} ({cur_hp}/{max_hp})"
+
+                    # --- 解析騎寵 ---
+                    pet_name = tokens[i+9] # 騎寵名稱
+                    
+                    # 判斷是否有騎寵 (有名稱且不是 "0")
+                    if pet_name and pet_name != "0":
+                        try:
+                            pet_lv = int(tokens[i+10], 16)
+                            pet_cur = int(tokens[i+11], 16)
+                            pet_max = int(tokens[i+12], 16)
+                            
+                            display_str += f" ;[{pet_lv}]{pet_name} ({pet_cur}/{pet_max})"
+                        except ValueError:
+                            pass 
+                    
+                    # 存入 Map
+                    battle_map[pos_id] = display_str
+                    # print(f"[Debug] 解析成功 -> ID: {pos_id} | 內容: {display_str}") # 除錯用
+
+                except (ValueError, IndexError):
+                    continue
+
+            return battle_map
+
+        except Exception as e:
+            print(f"[Worker] 讀取戰鬥數據失敗: {e}")
+            return {}
+        
+    def _read_items(self, pm, base):
+        """(Worker) 讀取裝備(-9~-1) 與 道具(0~14)"""
+        items_dict = {}
+        start_addr = base + ITEM_BASE_OFFSET
+        
+        # 範圍：從 -9 (頭部) 到 14 (道具15)，共 24 格
+        for i in range(-9, 15):
+            current_item_addr = start_addr + (i * ITEM_STRUCT_SIZE)
+            
+            try:
+                exist = pm.read_uchar(current_item_addr + ITEM_EXIST_REL)
+                if exist == 0:
+                    items_dict[i] = None
+                    continue
+                
+                item_data = {}
+                item_data["idx"] = i
+                item_data["stack"] = pm.read_int(current_item_addr + ITEM_STACK_REL)
+                
+                # 讀取字串
+                item_data["name"] = read_big5_string(pm, current_item_addr + ITEM_NAME_REL, 40)
+                item_data["desc"] = read_big5_string(pm, current_item_addr + ITEM_DESC_REL, 100)
+                item_data["dur"]  = read_big5_string(pm, current_item_addr + ITEM_DUR_REL, 20)
+                
+                items_dict[i] = item_data
+                
+            except Exception:
+                items_dict[i] = None
+                
+        return items_dict
 
     def _read_character_data(self, pm, base):
         """讀取所有人物資料"""
