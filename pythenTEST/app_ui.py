@@ -11,7 +11,7 @@ from utils import num_to_chinese
 
 # --- UI 佈局基礎參數 (以 100% 為基準) ---
 BASE_PARAMS = {
-    "APP_BASE_WIDTH": 950, "APP_BASE_HEIGHT": 250,
+    "APP_BASE_WIDTH": 1500, "APP_BASE_HEIGHT": 250,
     "LEFT_PANEL_WIDTH": 150, "NON_CONTENT_HEIGHT": 150,
     "CANVAS_ROW_PADDING": 15,
     "LEFT_CHECKBOX_PADY": 1, "SETTINGS_CHECKBOX_PADY": 1,
