@@ -286,35 +286,33 @@ def _draw_pet_grid(gd, idx):
     gd.draw_text(title, 2.2, "name", is_bold=True, items_dict=d); gd.new_row()
     gd.draw_text("", 2.2, "nickname", items_dict=d); gd.new_row()
     
-    gd.draw_text("LV:", 0.5); gd.draw_text("--", 0.3, "lv", items_dict=d); gd.draw_text("--", 1.1, "rebirth", align="e", items_dict=d); gd.new_row()
-    # 4. HP
-    gd.draw_text("HP:", 0.45); gd.draw_text("--/--", 1.75, "hp", items_dict=d); gd.new_row()
-    
-    # 5. 空行
+    # [修改] 為標籤 (Label) 加上 key (例如 "lbl_lv") 以便後續隱藏
+    gd.draw_text("LV:", 0.5, "lbl_lv", items_dict=d)
+    gd.draw_text("--", 0.3, "lv", items_dict=d)
+    gd.draw_text("--", 1.1, "rebirth", align="e", items_dict=d)
     gd.new_row()
     
-    # 6. 攻擊
-    gd.draw_text("攻擊:", 0.5); gd.draw_text("--", 1.7, "atk", items_dict=d); gd.new_row()
-    # 7. 防禦
-    gd.draw_text("防禦:", 0.5); gd.draw_text("--", 1.7, "def", items_dict=d); gd.new_row()
-    # 8. 敏捷
-    gd.draw_text("敏捷:", 0.5); gd.draw_text("--", 1.7, "agi", items_dict=d); gd.new_row()
+    gd.draw_text("HP:", 0.45, "lbl_hp", items_dict=d)
+    gd.draw_text("--/--", 1.75, "hp", items_dict=d); gd.new_row()
     
-    # 9. 屬性 + 忠誠 (仿照人物的屬性+魅力)
-    gd.draw_text("屬性:", 0.5)
+    gd.new_row() # 空行
+    
+    gd.draw_text("攻擊:", 0.5, "lbl_atk", items_dict=d); gd.draw_text("--", 1.7, "atk", items_dict=d); gd.new_row()
+    gd.draw_text("防禦:", 0.5, "lbl_def", items_dict=d); gd.draw_text("--", 1.7, "def", items_dict=d); gd.new_row()
+    gd.draw_text("敏捷:", 0.5, "lbl_agi", items_dict=d); gd.draw_text("--", 1.7, "agi", items_dict=d); gd.new_row()
+    
+    gd.draw_text("屬性:", 0.5, "lbl_elem", items_dict=d)
     for i in range(4): gd.draw_text("", 0.35, f"elem_{i+1}_val", items_dict=d)
     
     # 手動拉回 X 座標繪製忠誠
     gd.x -= int(42 * LAYOUT_PARAMS["SCALE"])
-    gd.draw_text("忠誠:", 0.54)
+    gd.draw_text("忠誠:", 0.54, "lbl_loyal", items_dict=d)
     gd.draw_text("--", 0.9, "loyal", items_dict=d)
     gd.new_row()
     
-    # 10. 經驗
-    gd.draw_text("經驗:", 0.5); gd.draw_text("--", 1.7, "exp", items_dict=d); gd.new_row()
+    gd.draw_text("經驗:", 0.5, "lbl_exp", items_dict=d); gd.draw_text("--", 1.7, "exp", items_dict=d); gd.new_row()
     
-    # 11. 還欠
-    gd.draw_text("還欠:", 0.5); gd.draw_text("--", 1.7, "lack", items_dict=d)
+    gd.draw_text("還欠:", 0.5, "lbl_lack", items_dict=d); gd.draw_text("--", 1.7, "lack", items_dict=d)
     # 最後一行
     return d
 
@@ -333,17 +331,24 @@ def _create_dual_col_panel(parent, title, content_func):
     h = lines * row_h + 10
     try: bg = ttk.Style().lookup("TFrame", "background") or "#f0f0f0"
     except: bg = "#f0f0f0"
-    cv = tk.Canvas(lf, height=h, bg=bg, highlightthickness=0)
+
+    # [修改] 設定固定寬度 (例如 850 像素)，防止因動態偵測寬度不足導致文字重疊
+    # 根據之前的排版經驗，850px 足以容納左右兩欄而不重疊
+    scale = LAYOUT_PARAMS["SCALE"]
+    fixed_width = int(850 * scale) 
+
+    # 設定 Canvas 的請求寬度為 fixed_width
+    cv = tk.Canvas(lf, width=fixed_width, height=h, bg=bg, highlightthickness=0)
     cv.pack(fill="both", expand=True)
-    ids_container = content_func(cv, row_h)
-    def on_resize(event):
-        w = event.width
-        if w < 10: return
-        cv.delete("all")
-        new_ids = content_func(cv, row_h, w)
-        ids_container.clear()
-        ids_container.update(new_ids)
-    cv.bind("<Configure>", on_resize)
+    
+    # [修改] 直接傳入固定寬度進行繪製，不再監聽 resize 事件
+    # 這樣 mid (中線) 就會固定在 425px 左右，確保右欄不會蓋到左欄
+    ids_container = content_func(cv, row_h, width=fixed_width)
+    
+    # [已移除] 原本的 on_resize 函式與 bind 綁定
+    # def on_resize(event): ...
+    # cv.bind("<Configure>", on_resize)
+    
     return {"frame": lf, "canvas": cv, "ids": ids_container}
 
 def _draw_items_content(cv, rh, width=None):
@@ -353,20 +358,38 @@ def _draw_items_content(cv, rh, width=None):
     fn = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_NORMAL"])
     fb = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_BOLD"], "bold")
     from constants import EQUIP_DISPLAY_ORDER, EQUIP_MAPPING
+    
+    # 畫中間的垂直分隔線
     cv.create_line(mid, 5, mid, rh*14, fill="#AAAAAA", tags="sep_line")
+    
+    # --- 左欄 (裝備 + 道具1-2) ---
     gd = GridDrawer(cv, 10, 10, rh, fn, fb)
     gd.draw_text("【裝備】", 4.0, is_bold=True, color="#0000AA"); gd.new_row()
+    
     for idx in EQUIP_DISPLAY_ORDER:
         prefix = EQUIP_MAPPING.get(idx, "??")
         ids[idx] = gd.draw_text(f"{prefix}: --", 5.0); gd.new_row()
-    gd.draw_separator(4.0)
+    
+    # [修改 1] 垂直置中：直接使用 gd.y (行中心) 畫線，移除原本的 (rh // 2) 偏移
+    # 這樣線條就會位於 "最後一個裝備" 和 "道具1-2標題" 的正中間
+    line_y = gd.y 
+    
+    # [修改 2] 寬度調整：長度改為整體寬度的一半 (即左欄寬度 mid)
+    # 設定左右留 10px 邊距，使其橫跨左欄
+    cv.create_line(10, line_y, mid - 10, line_y, fill="#DDDDDD")
+    
+    gd.new_row() # 換行準備寫標題
+    
     gd.draw_text("【道具 1-2】", 4.0, is_bold=True, color="#0000AA"); gd.new_row()
     for idx in range(2):
         ids[idx] = gd.draw_text(f"{idx+1:02d}: --", 5.0); gd.new_row()
+        
+    # --- 右欄 (道具 3-15) ---
     gd = GridDrawer(cv, mid + 10, 10, rh, fn, fb)
     gd.draw_text("【道具 3-15】", 4.0, is_bold=True, color="#0000AA"); gd.new_row()
     for idx in range(2, 15):
         ids[idx] = gd.draw_text(f"{idx+1:02d}: --", 5.0); gd.new_row()
+        
     return ids
 
 def _draw_battle_content(cv, rh, width=None):
@@ -423,9 +446,38 @@ def update_char_canvas(cv, items, d):
 
 def update_pet_canvas(cv, items, d, idx):
     default = f"寵物{num_to_chinese(idx+1)}"
+    
+    # 定義需要控制顯示/隱藏的標籤
+    label_map = {
+        "lbl_lv": "LV:", "lbl_hp": "HP:", "lbl_atk": "攻擊:", 
+        "lbl_def": "防禦:", "lbl_agi": "敏捷:", "lbl_elem": "屬性:", 
+        "lbl_loyal": "忠誠:", "lbl_exp": "經驗:", "lbl_lack": "還欠:"
+    }
+
     if not d:
-        cv.itemconfigure(items["name"], text=default, fill="black"); cv.itemconfigure(items["hp"], text="--/--")
+        # [修改] 若無寵物資料：清空所有欄位與標籤，只保留標題
+        cv.itemconfigure(items["name"], text=default, fill="black")
+        cv.itemconfigure(items["nickname"], text="")
+        
+        # 清空數值
+        for k in ["lv", "rebirth", "hp", "atk", "def", "agi", "loyal", "exp", "lack"]:
+             if k in items: cv.itemconfigure(items[k], text="")
+        
+        # 清空屬性圖示
+        for i in range(4):
+            if f"elem_{i+1}_val" in items: cv.itemconfigure(items[f"elem_{i+1}_val"], text="")
+
+        # 清空標籤 (LV:, HP: 等)
+        for k in label_map:
+            if k in items: cv.itemconfigure(items[k], text="")
+            
         return
+
+    # [修改] 若有寵物資料：先還原標籤文字
+    for k, txt in label_map.items():
+        if k in items: cv.itemconfigure(items[k], text=txt)
+
+    # 以下為原本的數值更新邏輯
     st = d.get("status_text", "休")
     col = REBIRTH_COLOR_MAP.get(d.get("status_color_key"), "black")
     cv.itemconfigure(items["name"], text=f"[{st}] {d.get('name', default)}", fill=col)
@@ -437,12 +489,14 @@ def update_pet_canvas(cv, items, d, idx):
     cv.itemconfigure(items["atk"], text=d.get("atk", "--"))
     cv.itemconfigure(items["def"], text=d.get("def", "--"))
     cv.itemconfigure(items["agi"], text=d.get("agi", "--"))
+    
     rt = d.get("rebirth", "未知")
     cv.itemconfigure(items["rebirth"], text=rt, fill=REBIRTH_COLOR_MAP.get(rt, "black"))
+    
     loyal = d.get("loyal", 100)
     cv.itemconfigure(items["loyal"], text=loyal, fill="red" if loyal <= 20 else "black")
     
-    # [修正] 屬性動態遞補邏輯 (與人物相同)
+    # 屬性動態顯示
     raw = d.get("element_raw", (0,0,0,0))
     attr_defs = [("地", "green"), ("水", "blue"), ("火", "red"), ("風", "#E5C100")]
     
@@ -470,8 +524,18 @@ def update_items_canvas(cv, ids, cache):
         else:
             stack = f" [{item['stack']}]" if item['stack'] > 1 else ""
             dur = f" {item['dur']}" if item['dur'] and "不會損壞" not in item['dur'] else ""
-            desc = f" {{{re.sub(r'\s*([+-])\s*', r'\1', item['desc'])}}}" if item['desc'] else ""
-            full = f"{EQUIP_MAPPING.get(idx, f'{idx+1:02d}')}:{stack} {item['name']}{desc}{dur}"
+            
+            # [修改] 處理說明文字
+            desc_str = ""
+            if item['desc']:
+                # 1. 先將連續2個以上的空白縮減為1個
+                d_clean = re.sub(r' {2,}', ' ', item['desc'])
+                # 2. 原有的邏輯：移除 +/- 號周圍的空白
+                d_clean = re.sub(r'\s*([+-])\s*', r'\1', d_clean)
+                desc_str = f" {{{d_clean}}}"
+            
+            full = f"{EQUIP_MAPPING.get(idx, f'{idx+1:02d}')}:{stack} {item['name']}{desc_str}{dur}"
+            
             color = DEFAULT_ITEM_COLOR
             for c, kws in ITEM_COLOR_RULES.items():
                 if any(k in item['name'] for k in kws): color = c; break
