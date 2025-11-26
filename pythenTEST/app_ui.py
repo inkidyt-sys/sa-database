@@ -16,7 +16,7 @@ LAYOUT_PARAMS = {
     "PADDING": 5,
     
     "CHECKBOX_PADY": 2,      
-    "CHAR_COL_WIDTH": 130,   
+    "CHAR_COL_WIDTH": 140,   
     "GRID_BASE_WIDTH": 60,   
 }
 
@@ -37,11 +37,11 @@ def update_layout_params(scale):
     LAYOUT_PARAMS["PADDING"] = int(5 * scale)
     
     LAYOUT_PARAMS["CHECKBOX_PADY"] = int(2 * scale)
-    LAYOUT_PARAMS["CHAR_COL_WIDTH"] = int(130 * scale)
+    LAYOUT_PARAMS["CHAR_COL_WIDTH"] = int(140 * scale)
     LAYOUT_PARAMS["GRID_BASE_WIDTH"] = int(60 * scale)
 
     return {
-        "APP_WIDTH": int(1000 * scale),
+        "APP_WIDTH": int(1050 * scale),
         "APP_HEIGHT": int(280 * scale), 
         "LEFT_PANEL_WIDTH": int(120 * scale),
     }
@@ -210,13 +210,13 @@ def create_client_info_canvas(parent, app):
     fn = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_NORMAL"])
     fb = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_BOLD"], "bold")
     
-    gd = GridDrawer(cv, 5, 5, row_h, fn, fb)
+    gd = GridDrawer(cv, 5, 10, row_h, fn, fb)
     items_list.append(_draw_person_grid(gd))
     
     for i in range(5):
         line_x = (col_w * (i+1)) + 15
         cv.create_line(line_x, 10, line_x, total_h - 10, fill="#CCCCCC")
-        gd = GridDrawer(cv, line_x + 10, 5, row_h, fn, fb)
+        gd = GridDrawer(cv, line_x + 10, 10, row_h, fn, fb)
         items_list.append(_draw_pet_grid(gd, i))
         
     return cv, items_list
@@ -233,17 +233,15 @@ def _draw_person_grid(gd):
     
     # 3. LV 轉生
     gd.draw_text("LV:", 0.5)
-    gd.draw_text("--", 0.7, "lv", items_dict=d)
+    gd.draw_text("--", 0.3, "lv", items_dict=d)
     gd.draw_text("--", 1.1, "rebirth", align="e", items_dict=d)
     gd.new_row()
     
-    # 4. MP (修正：移除魅力，讓 MP 佔滿剩餘空間)
-    gd.draw_text("MP:", 0.5)
-    gd.draw_text("--/--", 1.7, "mp", items_dict=d)
-    gd.new_row()
-    
-    # 5. HP
+    # 4. HP [修正: 位置對調]
     gd.draw_text("HP:", 0.5); gd.draw_text("--/--", 1.7, "hp", items_dict=d); gd.new_row()
+    
+    # 5. MP [修正: 位置對調]
+    gd.draw_text("MP:", 0.5); gd.draw_text("--/--", 1.7, "mp", items_dict=d); gd.new_row()
     
     # 6. 攻擊
     gd.draw_text("攻擊:", 0.5); gd.draw_text("--", 1.7, "atk", items_dict=d); gd.new_row()
@@ -288,21 +286,36 @@ def _draw_pet_grid(gd, idx):
     gd.draw_text(title, 2.2, "name", is_bold=True, items_dict=d); gd.new_row()
     gd.draw_text("", 2.2, "nickname", items_dict=d); gd.new_row()
     
-    gd.draw_text("LV:", 0.5); gd.draw_text("--", 0.4, "lv", items_dict=d); gd.draw_text("--", 1.1, "rebirth", align="e", items_dict=d); gd.new_row()
-    gd.draw_text("經驗:", 0.5); gd.draw_text("--", 1.7, "exp", items_dict=d); gd.new_row()
-    gd.draw_text("還欠:", 0.5); gd.draw_text("--", 1.7, "lack", items_dict=d); gd.new_row()
-    gd.draw_text("HP:", 0.5); gd.draw_text("--/--", 1.8, "hp", items_dict=d); gd.new_row()
+    gd.draw_text("LV:", 0.5); gd.draw_text("--", 0.3, "lv", items_dict=d); gd.draw_text("--", 1.1, "rebirth", align="e", items_dict=d); gd.new_row()
+    # 4. HP
+    gd.draw_text("HP:", 0.45); gd.draw_text("--/--", 1.75, "hp", items_dict=d); gd.new_row()
     
-    gd.draw_text("攻擊:", 0.5); gd.draw_text("--", 1.7, "atk", items_dict=d); gd.new_row()
-    gd.draw_text("防禦:", 0.5); gd.draw_text("--", 1.7, "def", items_dict=d); gd.new_row()
-    gd.draw_text("敏捷:", 0.5); gd.draw_text("--", 1.7, "agi", items_dict=d); gd.new_row()
-    
-    gd.draw_text("屬性:", 0.5)
-    for i in range(4): gd.draw_text("", 0.42, f"elem_{i+1}_val", items_dict=d)
-    # [修正] 移除寵物的 draw_line_below
+    # 5. 空行
     gd.new_row()
     
-    gd.draw_text("忠誠:", 0.5); gd.draw_text("--", 1.7, "loyal", items_dict=d)
+    # 6. 攻擊
+    gd.draw_text("攻擊:", 0.5); gd.draw_text("--", 1.7, "atk", items_dict=d); gd.new_row()
+    # 7. 防禦
+    gd.draw_text("防禦:", 0.5); gd.draw_text("--", 1.7, "def", items_dict=d); gd.new_row()
+    # 8. 敏捷
+    gd.draw_text("敏捷:", 0.5); gd.draw_text("--", 1.7, "agi", items_dict=d); gd.new_row()
+    
+    # 9. 屬性 + 忠誠 (仿照人物的屬性+魅力)
+    gd.draw_text("屬性:", 0.5)
+    for i in range(4): gd.draw_text("", 0.35, f"elem_{i+1}_val", items_dict=d)
+    
+    # 手動拉回 X 座標繪製忠誠
+    gd.x -= int(42 * LAYOUT_PARAMS["SCALE"])
+    gd.draw_text("忠誠:", 0.54)
+    gd.draw_text("--", 0.9, "loyal", items_dict=d)
+    gd.new_row()
+    
+    # 10. 經驗
+    gd.draw_text("經驗:", 0.5); gd.draw_text("--", 1.7, "exp", items_dict=d); gd.new_row()
+    
+    # 11. 還欠
+    gd.draw_text("還欠:", 0.5); gd.draw_text("--", 1.7, "lack", items_dict=d)
+    # 最後一行
     return d
 
 def create_item_client_panel(parent, account_name):
@@ -334,14 +347,14 @@ def _create_dual_col_panel(parent, title, content_func):
     return {"frame": lf, "canvas": cv, "ids": ids_container}
 
 def _draw_items_content(cv, rh, width=None):
-    if width is None: width = 600
+    if width is None: width = 2000
     mid = width // 2
     ids = {}
     fn = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_NORMAL"])
     fb = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_BOLD"], "bold")
     from constants import EQUIP_DISPLAY_ORDER, EQUIP_MAPPING
     cv.create_line(mid, 5, mid, rh*14, fill="#AAAAAA", tags="sep_line")
-    gd = GridDrawer(cv, 10, 5, rh, fn, fb)
+    gd = GridDrawer(cv, 10, 10, rh, fn, fb)
     gd.draw_text("【裝備】", 4.0, is_bold=True, color="#0000AA"); gd.new_row()
     for idx in EQUIP_DISPLAY_ORDER:
         prefix = EQUIP_MAPPING.get(idx, "??")
@@ -350,24 +363,24 @@ def _draw_items_content(cv, rh, width=None):
     gd.draw_text("【道具 1-2】", 4.0, is_bold=True, color="#0000AA"); gd.new_row()
     for idx in range(2):
         ids[idx] = gd.draw_text(f"{idx+1:02d}: --", 5.0); gd.new_row()
-    gd = GridDrawer(cv, mid + 10, 5, rh, fn, fb)
+    gd = GridDrawer(cv, mid + 10, 10, rh, fn, fb)
     gd.draw_text("【道具 3-15】", 4.0, is_bold=True, color="#0000AA"); gd.new_row()
     for idx in range(2, 15):
         ids[idx] = gd.draw_text(f"{idx+1:02d}: --", 5.0); gd.new_row()
     return ids
 
 def _draw_battle_content(cv, rh, width=None):
-    if width is None: width = 600
+    if width is None: width = 2000
     mid = width // 2
     ids = {}
     fn = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_NORMAL"])
     fb = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_BOLD"], "bold")
     from constants import BATTLE_LEFT_ORDER, BATTLE_RIGHT_ORDER
     cv.create_line(mid, 5, mid, rh*12, fill="#AAAAAA", tags="sep_line")
-    gd = GridDrawer(cv, 10, 5, rh, fn, fb)
+    gd = GridDrawer(cv, 10, 10, rh, fn, fb)
     gd.draw_text("【左方隊伍】", 4.0, is_bold=True, color="#A00000"); gd.new_row()
     for idx in BATTLE_LEFT_ORDER: ids[idx] = gd.draw_text(f"{idx}: --", 5.0); gd.new_row()
-    gd = GridDrawer(cv, mid + 10, 5, rh, fn, fb)
+    gd = GridDrawer(cv, mid + 10, 10, rh, fn, fb)
     gd.draw_text("【右方隊伍】", 4.0, is_bold=True, color="#0000A0"); gd.new_row()
     for idx in BATTLE_RIGHT_ORDER: ids[idx] = gd.draw_text(f"{idx}: --", 5.0); gd.new_row()
     return ids
