@@ -1,23 +1,20 @@
 # main.py
-# (v4.14 - Height Fix)
+# (v4.15 - Adjusted for new app_ui)
 
 import tkinter as tk
 from tkinter import ttk
 import ctypes
 import queue
-import re
 
 from constants import *
-from ui_components import ScrollableFrame
 from utils import is_admin
 import app_ui 
 from memory_worker import MemoryMonitorThread
 
-# 引入功能模組
 import game_scanner
 import game_features
 
-# --- DPI 設定 ---
+# --- DPI ---
 try: ctypes.windll.shcore.SetProcessDpiAwareness(1) 
 except: 
     try: ctypes.windll.user32.SetProcessDPIAware()
@@ -29,7 +26,7 @@ class DSAHelperApp(tk.Tk):
         self.detect_dpi()
         self.user_scale = 1.0
         
-        # 變數初始化
+        # UI 變數
         self.refresh_rate_var = tk.StringVar(value='3s')
         self.zoom_var = tk.StringVar(value='100%') 
         self.auto_height_var = tk.IntVar(value=1)
@@ -39,6 +36,7 @@ class DSAHelperApp(tk.Tk):
         self.client_data_slots = [self.create_empty_slot_data() for _ in range(MAX_CLIENTS)]
         self.client_checkboxes = []
         self.setting_widgets = []
+        # UI 緩存
         self.client_canvas_ui = [None] * MAX_CLIENTS
         self.client_item_ui = {}
         self.client_battle_ui = {}
@@ -48,15 +46,11 @@ class DSAHelperApp(tk.Tk):
         self.command_queue = queue.Queue()
         self.worker_thread = None
 
-        # 視窗建構
-        self.title("DSA Helper v4.14 (Height Fixed)")
+        self.title("DSA Helper v4.15 (Dynamic Layout)")
         try: self.iconbitmap("icon.ico")
         except: pass
         
-        # (重要) 計算佈局參數
         self.calc_layout_params()
-        
-        # 建構 UI
         self.rebuild_ui(first_run=True)
 
         if not is_admin():
@@ -74,18 +68,17 @@ class DSAHelperApp(tk.Tk):
         except: self.SYSTEM_DPI_SCALING = 1.0 
 
     def calc_layout_params(self):
-        """計算並同步佈局參數"""
         base_scale = 1.0
         if self.SYSTEM_DPI_SCALING > 1.35: base_scale = 1.5
         elif self.SYSTEM_DPI_SCALING > 1.1: base_scale = 1.25
         
         final_ratio = base_scale * self.user_scale
         
-        # 更新 app_ui 與本地參數
-        app_ui.update_layout_params(final_ratio)
-        self.scaled_left_panel_width = app_ui.LAYOUT_LEFT_PANEL_WIDTH
-        self.current_base_width = app_ui.LAYOUT_APP_BASE_WIDTH
-        self.base_window_height = app_ui.LAYOUT_APP_BASE_HEIGHT
+        # 更新 app_ui 並取得視窗大小
+        dims = app_ui.update_layout_params(final_ratio)
+        self.scaled_left_panel_width = dims["LEFT_PANEL_WIDTH"]
+        self.current_base_width = dims["APP_WIDTH"]
+        self.base_window_height = dims["APP_HEIGHT"]
 
     def rebuild_ui(self, first_run=False):
         if not first_run:
@@ -125,7 +118,6 @@ class DSAHelperApp(tk.Tk):
             "is_hidden": False
         }
 
-    # --- Worker & Update Loop ---
     def start_worker_thread(self):
         if self.worker_thread and self.worker_thread.is_alive(): return
         self.worker_thread = MemoryMonitorThread(self.data_queue, self.command_queue, self.client_data_slots)
@@ -157,7 +149,6 @@ class DSAHelperApp(tk.Tk):
         except queue.Empty: pass
         self.after(100, self.check_data_queue)
 
-    # --- 綁定邏輯 ---
     def on_bind_click(self):
         curr_pids = {slot["pid"] for slot in self.client_data_slots if slot["status"] == "已綁定"}
         new_wins = [w for w in game_scanner.find_game_windows() if w[1] not in curr_pids]
@@ -177,7 +168,6 @@ class DSAHelperApp(tk.Tk):
                 except StopIteration: break
         self.update_all_displays()
 
-    # --- UI 事件 ---
     def on_selection_change(self): self.update_all_displays()
     def on_tab_changed(self, e=None): self.adjust_window_height()
 
@@ -196,7 +186,6 @@ class DSAHelperApp(tk.Tk):
             ui = self.client_canvas_ui[i]
             
             if sel and slot["status"] == "已綁定":
-                # 設定面板
                 sw = self.setting_widgets[i]
                 sw["frame"].pack(side="left", fill="y", anchor="n", padx=5, pady=5)
                 sw["frame"].config(text=slot["account_name"])
@@ -205,7 +194,6 @@ class DSAHelperApp(tk.Tk):
                 sw["vars"]["no_clip"].set(slot["noclip_is_patched"])
                 sw["vars"]["hide_sa"].set(slot["is_hidden"])
                 
-                # 資料面板
                 if not ui:
                     frame = ttk.Labelframe(self.tab_frame_char.inner_frame, text="初始化...", padding=0)
                     cv, items = app_ui.create_client_info_canvas(frame, self)
@@ -244,22 +232,8 @@ class DSAHelperApp(tk.Tk):
             ui = self.client_item_ui[i]
             if ui["frame"].cget("text") != slot["account_name"]: ui["frame"].config(text=slot["account_name"])
             
-            cache = slot.get("item_data_cache", {})
-            for idx, tid in ui["ids"].items():
-                item = cache.get(idx)
-                if not item:
-                    prefix = EQUIP_MAPPING.get(idx, f"{idx+1:02d}")
-                    ui["canvas"].itemconfigure(tid, text=f"{prefix}: (空)", fill="#888888")
-                else:
-                    stack = f" [{item['stack']}]" if item['stack'] > 1 else ""
-                    dur = f" {item['dur']}" if item['dur'] and "不會損壞" not in item['dur'] else ""
-                    desc = f" {{{re.sub(r'\s*([+-])\s*', r'\1', item['desc'])}}}" if item['desc'] else ""
-                    full = f"{EQUIP_MAPPING.get(idx, f'{idx+1:02d}')}:{stack} {item['name']}{desc}{dur}"
-                    
-                    color = DEFAULT_ITEM_COLOR
-                    for c, kws in ITEM_COLOR_RULES.items():
-                        if any(k in item['name'] for k in kws): color = c; break
-                    ui["canvas"].itemconfigure(tid, text=full, fill=color)
+            # 使用 app_ui 的更新函式
+            app_ui.update_items_canvas(ui["canvas"], ui["ids"], slot.get("item_data_cache", {}))
 
         if needs_redraw: parent.event_generate("<Configure>"); self.adjust_window_height()
 
@@ -280,17 +254,11 @@ class DSAHelperApp(tk.Tk):
             ui = self.client_battle_ui[i]
             if ui["frame"].cget("text") != slot["account_name"]: ui["frame"].config(text=slot["account_name"])
             
-            b_data = slot.get("battle_data_cache", {})
-            state = slot.get("game_state", 0)
-            for pid, tid in ui["ids"].items():
-                if state == 11: ui["canvas"].itemconfigure(tid, text=f"{pid}: (斷線)", fill="red")
-                elif state != 10: ui["canvas"].itemconfigure(tid, text=f"{pid}: (非戰鬥)", fill="#888888")
-                else:
-                    info = b_data.get(pid)
-                    ui["canvas"].itemconfigure(tid, text=info if info else f"{pid}: --", fill="black" if info else "#CCCCCC")
+            # 使用 app_ui 的更新函式
+            app_ui.update_battle_canvas(ui["canvas"], ui["ids"], slot.get("battle_data_cache", {}), slot.get("game_state", 0))
+
         if needs_redraw: parent.event_generate("<Configure>"); self.adjust_window_height()
 
-    # --- 功能開關 ---
     def on_toggle_walk(self, i): 
         if not game_features.toggle_memory_feature(self.client_data_slots[i], "walk_is_patched", "walk_address", 
             "walk_original_byte", WALK_PATCHED_BYTE, self.setting_widgets[i]["vars"]["fast_walk"].get(), True):
@@ -312,55 +280,30 @@ class DSAHelperApp(tk.Tk):
     def _revert_chk(self, i, name):
         v = self.setting_widgets[i]["vars"][name]; v.set(not v.get())
 
-    # --- 其他 ---
     def on_refresh_rate_change(self, e=None):
         m = {'0.5s':0.5, '1s':1.0, '3s':3.0, '5s':5.0, '10s':10.0, '60s':60.0, '不刷新':None}
         self.command_queue.put({"action": "set_rate", "value": m.get(self.refresh_rate_var.get(), 3.0)})
 
     def adjust_window_height(self):
-        """(修正版) 根據當前分頁與內容自動調整高度"""
         if not self.auto_height_var.get(): return
-        self.update_idletasks() # 強制更新排版狀態
-        
+        self.update_idletasks()
         try:
-            # 取得當前 Tab
-            select_id = self.notebook.select()
-            if not select_id: return
-            tab_text = self.notebook.tab(select_id, "text")
-            
-            target_frame = None
-            extra_padding = 80 # 基本緩衝(標題列+邊距)
+            if self.notebook.select():
+                tab_text = self.notebook.tab(self.notebook.select(), "text")
+                target_frame = None
+                extra_padding = 80
 
-            # 根據 Tab 名稱抓取對應的 inner_frame
-            if tab_text == "人寵資料":
-                if hasattr(self, "tab_frame_char"): target_frame = self.tab_frame_char.inner_frame
-            elif tab_text == "道具列表":
-                if hasattr(self, "tab_frame_items"): target_frame = self.tab_frame_items.inner_frame
-            elif tab_text == "戰鬥狀態":
-                if hasattr(self, "tab_frame_battle"): target_frame = self.tab_frame_battle.inner_frame
-            elif tab_text == "遊戲設置":
-                # 遊戲設置上方有 Global Settings，需增加額外高度
-                if hasattr(self, "tab_frame_settings"): 
-                    target_frame = self.tab_frame_settings.inner_frame
+                if tab_text == "人寵資料": target_frame = getattr(self, "tab_frame_char", None) and self.tab_frame_char.inner_frame
+                elif tab_text == "道具列表": target_frame = getattr(self, "tab_frame_items", None) and self.tab_frame_items.inner_frame
+                elif tab_text == "戰鬥狀態": target_frame = getattr(self, "tab_frame_battle", None) and self.tab_frame_battle.inner_frame
+                elif tab_text == "遊戲設置":
+                    target_frame = getattr(self, "tab_frame_settings", None) and self.tab_frame_settings.inner_frame
                     extra_padding += 50 
 
-            # 如果有找到目標 Frame，計算高度
-            if target_frame:
-                req_h = target_frame.winfo_reqheight()
-                final_h = req_h + extra_padding
-                
-                # 限制高度範圍 (避免過小或超過螢幕)
-                min_h = 250
-                max_h = self.winfo_screenheight() - 100
-                final_h = max(min_h, min(final_h, max_h))
-                
-                # 若左側選單很長，也需考慮進去 (左側最小 220px)
-                # 這裡簡單取 max 即可，通常 content 會比較長
-                
-                self.geometry(f"{self.current_base_width}x{final_h}")
-                
-        except Exception:
-            pass # 避免調整高度出錯導致程式崩潰
+                if target_frame:
+                    final_h = target_frame.winfo_reqheight() + extra_padding
+                    self.geometry(f"{self.current_base_width}x{max(250, min(final_h, self.winfo_screenheight()-100))}")
+        except: pass
 
     def on_client_right_click_single(self, e, i):
         h = self.client_data_slots[i]["hwnd"]
@@ -375,10 +318,6 @@ class DSAHelperApp(tk.Tk):
         if self.worker_thread: self.command_queue.put({"action": "stop"}); self.worker_thread.join(1.0)
         for s in self.client_data_slots:
             if s["status"] == "已綁定":
-                if s["walk_is_patched"]: game_features.toggle_memory_feature(s, "walk_is_patched", "walk_address", "walk_original_byte", WALK_PATCHED_BYTE, False, True)
-                if s["speed_is_patched"]: game_features.toggle_speed(s, False)
-                if s["noclip_is_patched"]: game_features.toggle_memory_feature(s, "noclip_is_patched", "noclip_address", "noclip_original_bytes", NOCLIP_PATCHED_BYTES, False, False)
-                if s["is_hidden"]: game_features.toggle_hide_window(s, False)
                 try: s["pm_handle"].close_process()
                 except: pass
         self.destroy()
