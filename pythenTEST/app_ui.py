@@ -317,41 +317,41 @@ def _draw_pet_grid(gd, idx):
     return d
 
 def create_item_client_panel(parent, account_name):
-    return _create_dual_col_panel(parent, account_name, _draw_items_content)
+    # [修改] 這裡指定道具面板的基礎寬度為 850 (維持原樣)
+    return _create_dual_col_panel(parent, account_name, _draw_items_content, base_width=850)
 
 def create_battle_client_panel(parent, account_name):
-    return _create_dual_col_panel(parent, account_name, _draw_battle_content)
+    # [修改] 這裡指定戰鬥面板的基礎寬度為 600
+    return _create_dual_col_panel(parent, account_name, _draw_battle_content, base_width=600)
 
-def _create_dual_col_panel(parent, title, content_func):
+def _create_dual_col_panel(parent, title, content_func, base_width=850):
     lf = ttk.Labelframe(parent, text=title, padding=2)
     lf.pack(fill="x", padx=5, pady=2, anchor="n")
     row_h = LAYOUT_PARAMS["ROW_HEIGHT"]
+    
     is_item = "item" in content_func.__name__
-    lines = 14 if is_item else 12
+    
+    # [關鍵修改] 將 else (戰鬥面板) 的預設行數改為 16 (原本是 12)
+    # 這樣外框高度才足夠容納拉長的陣型
+    lines = 14 if is_item else 16
+    
     h = lines * row_h + 10
+    
     try: bg = ttk.Style().lookup("TFrame", "background") or "#f0f0f0"
     except: bg = "#f0f0f0"
 
-    # [修改] 設定固定寬度 (例如 850 像素)，防止因動態偵測寬度不足導致文字重疊
-    # 根據之前的排版經驗，850px 足以容納左右兩欄而不重疊
     scale = LAYOUT_PARAMS["SCALE"]
-    fixed_width = int(850 * scale) 
+    final_width = int(base_width * scale) 
 
-    # 設定 Canvas 的請求寬度為 fixed_width
-    cv = tk.Canvas(lf, width=fixed_width, height=h, bg=bg, highlightthickness=0)
+    cv = tk.Canvas(lf, width=final_width, height=h, bg=bg, highlightthickness=0)
     cv.pack(fill="both", expand=True)
     
-    # [修改] 直接傳入固定寬度進行繪製，不再監聽 resize 事件
-    # 這樣 mid (中線) 就會固定在 425px 左右，確保右欄不會蓋到左欄
-    ids_container = content_func(cv, row_h, width=fixed_width)
-    
-    # [已移除] 原本的 on_resize 函式與 bind 綁定
-    # def on_resize(event): ...
-    # cv.bind("<Configure>", on_resize)
+    ids_container = content_func(cv, row_h, width=final_width)
     
     return {"frame": lf, "canvas": cv, "ids": ids_container}
 
 def _draw_items_content(cv, rh, width=None):
+    width = 1000
     if width is None: width = 2000
     mid = width // 2
     ids = {}
@@ -393,19 +393,61 @@ def _draw_items_content(cv, rh, width=None):
     return ids
 
 def _draw_battle_content(cv, rh, width=None):
-    if width is None: width = 2000
-    mid = width // 2
+    # 這裡會接收由上層傳入的縮放後寬度 (例如 600 * scale)
+    if width is None: width = 600
+    
+    unit_w = width // 6
+    mid_x = width // 2
+    
+    step_compact = int(rh * 2.0)
+    step_spread = int(rh * 2.3)
+    
+    center_y = 10 + (2 * step_spread)
+    
+    # 騎寵偏移量
+    pet_offset = int(100 * LAYOUT_PARAMS["SCALE"])
+    
+    # 定義四欄配置
+    # [關鍵修改] 增加 "allow_move" 標記
+    # 只有第一欄 (左後) 設為 True，允許沒騎寵時往右靠
+    # 其他三欄都設為 False，固定不動
+    cols_config = [
+        {"ids": [14, 12, 10, 11, 13], "x": 10, "step": step_spread, "allow_move": True},
+        {"ids": [19, 17, 15, 16, 18], "x": mid_x - unit_w + 10, "step": step_compact, "allow_move": False},
+        {"ids": [9, 7, 5, 6, 8],      "x": mid_x + 10,  "step": step_compact, "allow_move": False},
+        {"ids": [4, 2, 0, 1, 3],      "x": mid_x + unit_w + 10, "step": step_spread, "allow_move": False},
+    ]
+
     ids = {}
     fn = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_NORMAL"])
-    fb = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_BOLD"], "bold")
-    from constants import BATTLE_LEFT_ORDER, BATTLE_RIGHT_ORDER
-    cv.create_line(mid, 5, mid, rh*12, fill="#AAAAAA", tags="sep_line")
-    gd = GridDrawer(cv, 10, 10, rh, fn, fb)
-    gd.draw_text("【左方隊伍】", 4.0, is_bold=True, color="#A00000"); gd.new_row()
-    for idx in BATTLE_LEFT_ORDER: ids[idx] = gd.draw_text(f"{idx}: --", 5.0); gd.new_row()
-    gd = GridDrawer(cv, mid + 10, 10, rh, fn, fb)
-    gd.draw_text("【右方隊伍】", 4.0, is_bold=True, color="#0000A0"); gd.new_row()
-    for idx in BATTLE_RIGHT_ORDER: ids[idx] = gd.draw_text(f"{idx}: --", 5.0); gd.new_row()
+    
+    for cfg in cols_config:
+        item_ids = cfg["ids"]
+        base_x = cfg["x"]
+        step = cfg["step"]
+        can_move = cfg.get("allow_move", False) # 取得該欄位是否允許移動
+        
+        for i, pid in enumerate(item_ids):
+            offset = (i - 2) * step
+            draw_y = center_y + offset
+            
+            # 建立文字物件
+            tid_h = cv.create_text(base_x, draw_y, text="", font=fn, anchor="nw", fill="black")
+            tid_p = cv.create_text(base_x + pet_offset, draw_y, text="", font=fn, anchor="nw", fill="black")
+            
+            ids[pid] = {
+                "h": tid_h,
+                "p": tid_p,
+                "ox": base_x,       # 原始 X
+                "oy": draw_y,       # 原始 Y
+                "off": pet_offset,  # 偏移量
+                "allow_move": can_move # [關鍵] 儲存是否允許移動的設定
+            }
+
+    max_y = center_y + (2 * step_spread) + int(rh * 3.5)
+    cv.create_line(mid_x, 5, mid_x, max_y - 5, fill="#DDDDDD", dash=(4, 2))
+    cv.configure(height=max_y)
+    
     return ids
 
 def update_char_canvas(cv, items, d):
@@ -542,9 +584,93 @@ def update_items_canvas(cv, ids, cache):
             cv.itemconfigure(tid, text=full, fill=color)
 
 def update_battle_canvas(cv, ids, cache, state):
-    for pid, tid in ids.items():
-        if state == 11: cv.itemconfigure(tid, text=f"{pid}: (斷線)", fill="red")
-        elif state != 10: cv.itemconfigure(tid, text=f"{pid}: (非戰鬥)", fill="#888888")
+    # [新增] 取得要變色的索引 (從 memory_worker 傳來的 cmd_idx)
+    cmd_idx = cache.get("cmd_idx", -1)
+    
+    # 計算需要變藍色的 ID 列表
+    # 邏輯：讀取到 N -> N號位 與 N+5號位 變藍
+    target_pids = []
+    if isinstance(cmd_idx, int) and 0 <= cmd_idx <= 4:
+        target_pids = [cmd_idx, cmd_idx + 5]
+
+    for pid, info in ids.items():
+        tid_h = info["h"]
+        tid_p = info["p"]
+        ox = info["ox"]
+        oy = info["oy"]
+        off = info["off"]
+        
+        check_pid = info.get("check_pid")
+        target_x = info.get("target_x")
+
+        # 1. 狀態檢查
+        if state != 10: 
+            cv.itemconfigure(tid_h, text="")
+            cv.itemconfigure(tid_p, text="")
+            continue
+            
+        data = cache.get(pid)
+        # 2. 資料檢查
+        if not data:
+            cv.itemconfigure(tid_h, text="")
+            cv.itemconfigure(tid_p, text="")
+            continue
+
+        # 3. 位置移動邏輯 (左後排遞補)
+        cur_x = ox 
+        if check_pid is not None:
+            front_data = cache.get(check_pid)
+            is_empty = False
+            if not front_data:
+                is_empty = True
+            else:
+                f_name = str(front_data.get("name", "")).strip()
+                if f_name in ["", "0", "???", "None"]:
+                    is_empty = True
+            
+            if is_empty:
+                cur_x = target_x
+        
+        cv.coords(tid_h, cur_x, oy)
+        cv.coords(tid_p, cur_x + off, oy)
+
+        # 4. 文字內容處理
+        name = "???"
+        hp = 0
+        max_hp = 0
+        pet_data = None
+        
+        if isinstance(data, dict):
+            name = data.get("name", "??")
+            hp = data.get("hp", 0)
+            max_hp = data.get("max_hp", 0)
+            pet_data = data.get("pet_info")
         else:
-            info = cache.get(pid)
-            cv.itemconfigure(tid, text=info if info else f"{pid}: --", fill="black" if info else "#CCCCCC")
+            name = str(data)
+        
+        text_h = f"{name}\n  ({hp}/{max_hp})"
+        
+        text_p = ""
+        if pet_data:
+            p_name = pet_data.get("name", "??")
+            p_hp = pet_data.get("hp", 0)
+            p_max = pet_data.get("max_hp", 0)
+            text_p = f"{p_name}\n  ({p_hp}/{p_max})"
+        
+        # --- [關鍵修改] 顏色邏輯 ---
+        # 預設顏色
+        color_h = "black"
+        color_p = "black"
+        
+        # 死亡判定 (優先級低)
+        try:
+            if int(hp) <= 0: color_h = "red"
+        except: pass
+        
+        # 藍色指令判定 (優先級高，覆蓋死亡顏色)
+        if pid in target_pids:
+            color_h = "blue"
+            color_p = "blue" # 騎寵也一起變藍
+            
+        cv.itemconfigure(tid_h, text=text_h, fill=color_h)
+        cv.itemconfigure(tid_p, text=text_p, fill=color_p)

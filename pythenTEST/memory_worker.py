@@ -210,8 +210,20 @@ class MemoryMonitorThread(threading.Thread):
     def _read_battle(self, pm, base):
         res = {}
         try:
+            from constants import BATTLE_STRING_OFFSET
+            from utils import read_big5_string
+            
+            # [新增] 讀取指定位置 (sadsa.exe+1E9110) 用於判斷藍色文字
+            try:
+                # 讀取 1 byte
+                cmd_idx = pm.read_uchar(base + 0x1E9110)
+                res["cmd_idx"] = cmd_idx
+            except:
+                res["cmd_idx"] = -1
+
+            # 讀取原本的戰鬥字串
             raw = read_big5_string(pm, base + BATTLE_STRING_OFFSET, 4096)
-            if not raw: return {}
+            if not raw: return res
             
             tokens = raw.split('|')
             # 13 欄位一組
@@ -223,17 +235,30 @@ class MemoryMonitorThread(threading.Thread):
                     
                     pid = int(tokens[i], 16)
                     lv = int(tokens[i+4], 16)
-                    hp, max_hp = int(tokens[i+5], 16), int(tokens[i+6], 16)
+                    hp = int(tokens[i+5], 16)
+                    max_hp = int(tokens[i+6], 16)
                     
-                    info = f"[{lv}]{name} ({hp}/{max_hp})"
+                    data = {
+                        "name": name,
+                        "lv": lv,
+                        "hp": hp,
+                        "max_hp": max_hp,
+                        "pet_info": None
+                    }
                     
                     pet_name = tokens[i+9]
                     if pet_name and pet_name != "0":
                         plv = int(tokens[i+10], 16)
-                        php, pmax = int(tokens[i+11], 16), int(tokens[i+12], 16)
-                        info += f" ;[{plv}]{pet_name} ({php}/{pmax})"
+                        php = int(tokens[i+11], 16)
+                        pmax = int(tokens[i+12], 16)
+                        data["pet_info"] = {
+                            "name": pet_name,
+                            "lv": plv,
+                            "hp": php,
+                            "max_hp": pmax
+                        }
                     
-                    res[pid] = info
+                    res[pid] = data
                 except: continue
             return res
         except: return {}
