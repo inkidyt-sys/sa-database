@@ -213,15 +213,13 @@ class MemoryMonitorThread(threading.Thread):
             from constants import BATTLE_STRING_OFFSET
             from utils import read_big5_string
             
-            # [新增] 讀取指定位置 (sadsa.exe+1E9110) 用於判斷藍色文字
+            # 讀取指令索引 (用於判斷選中目標)
             try:
-                # 讀取 1 byte
                 cmd_idx = pm.read_uchar(base + 0x1E9110)
                 res["cmd_idx"] = cmd_idx
             except:
                 res["cmd_idx"] = -1
 
-            # 讀取原本的戰鬥字串
             raw = read_big5_string(pm, base + BATTLE_STRING_OFFSET, 4096)
             if not raw: return res
             
@@ -246,8 +244,10 @@ class MemoryMonitorThread(threading.Thread):
                         "pet_info": None
                     }
                     
+                    # --- [修改] 騎寵判斷邏輯 ---
                     pet_name = tokens[i+9]
-                    if pet_name and pet_name != "0":
+                    # 改為判斷去除空白後長度是否大於 0
+                    if pet_name and len(pet_name.strip()) > 0:
                         plv = int(tokens[i+10], 16)
                         php = int(tokens[i+11], 16)
                         pmax = int(tokens[i+12], 16)
@@ -257,6 +257,7 @@ class MemoryMonitorThread(threading.Thread):
                             "hp": php,
                             "max_hp": pmax
                         }
+                    # --------------------------
                     
                     res[pid] = data
                 except: continue

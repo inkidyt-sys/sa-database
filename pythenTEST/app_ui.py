@@ -393,7 +393,6 @@ def _draw_items_content(cv, rh, width=None):
     return ids
 
 def _draw_battle_content(cv, rh, width=None):
-    # 這裡會接收由上層傳入的縮放後寬度 (例如 600 * scale)
     if width is None: width = 600
     
     unit_w = width // 6
@@ -403,19 +402,23 @@ def _draw_battle_content(cv, rh, width=None):
     step_spread = int(rh * 2.3)
     
     center_y = 10 + (2 * step_spread)
-    
-    # 騎寵偏移量
     pet_offset = int(100 * LAYOUT_PARAMS["SCALE"])
     
-    # 定義四欄配置
-    # [關鍵修改] 增加 "allow_move" 標記
-    # 只有第一欄 (左後) 設為 True，允許沒騎寵時往右靠
-    # 其他三欄都設為 False，固定不動
+    # 定義各欄位 X 座標
+    col1_x = 10
+    col2_x = mid_x - unit_w + 10 
+    col3_x = mid_x + 10
+    col4_x = mid_x + unit_w + 10
+
+    # [修改重點 1] 移動目標 target_x 改為 "col1_x + pet_offset"
+    # 這樣人物就會移動到 "原本該欄位騎寵的位置" (視覺上的前排)
+    target_pos_x = col1_x + pet_offset
+
     cols_config = [
-        {"ids": [14, 12, 10, 11, 13], "x": 10, "step": step_spread, "allow_move": True},
-        {"ids": [19, 17, 15, 16, 18], "x": mid_x - unit_w + 10, "step": step_compact, "allow_move": False},
-        {"ids": [9, 7, 5, 6, 8],      "x": mid_x + 10,  "step": step_compact, "allow_move": False},
-        {"ids": [4, 2, 0, 1, 3],      "x": mid_x + unit_w + 10, "step": step_spread, "allow_move": False},
+        {"ids": [14, 12, 10, 11, 13], "x": col1_x, "step": step_spread, "allow_move": True, "target_x": target_pos_x},
+        {"ids": [19, 17, 15, 16, 18], "x": col2_x, "step": step_compact, "allow_move": False},
+        {"ids": [9, 7, 5, 6, 8],      "x": col3_x, "step": step_compact, "allow_move": False},
+        {"ids": [4, 2, 0, 1, 3],      "x": col4_x, "step": step_spread, "allow_move": False},
     ]
 
     ids = {}
@@ -425,23 +428,24 @@ def _draw_battle_content(cv, rh, width=None):
         item_ids = cfg["ids"]
         base_x = cfg["x"]
         step = cfg["step"]
-        can_move = cfg.get("allow_move", False) # 取得該欄位是否允許移動
+        can_move = cfg.get("allow_move", False)
+        tgt_x = cfg.get("target_x", None)
         
         for i, pid in enumerate(item_ids):
             offset = (i - 2) * step
             draw_y = center_y + offset
             
-            # 建立文字物件
             tid_h = cv.create_text(base_x, draw_y, text="", font=fn, anchor="nw", fill="black")
             tid_p = cv.create_text(base_x + pet_offset, draw_y, text="", font=fn, anchor="nw", fill="black")
             
             ids[pid] = {
                 "h": tid_h,
                 "p": tid_p,
-                "ox": base_x,       # 原始 X
-                "oy": draw_y,       # 原始 Y
-                "off": pet_offset,  # 偏移量
-                "allow_move": can_move # [關鍵] 儲存是否允許移動的設定
+                "ox": base_x,       
+                "oy": draw_y,       
+                "off": pet_offset,
+                "allow_move": can_move,
+                "target_x": tgt_x
             }
 
     max_y = center_y + (2 * step_spread) + int(rh * 3.5)
@@ -449,6 +453,76 @@ def _draw_battle_content(cv, rh, width=None):
     cv.configure(height=max_y)
     
     return ids
+
+def update_battle_canvas(cv, ids, cache, state):
+    cmd_idx = cache.get("cmd_idx", -1)
+    
+    # [修改重點 2] 判斷目標 ID (只對右邊人物 0~4 生效)
+    target_pids = []
+    # 限制 0 <= cmd_idx <= 4 代表只針對右方玩家隊伍
+    if isinstance(cmd_idx, int) and 0 <= cmd_idx <= 20:
+        target_pids = [cmd_idx, cmd_idx + 5]
+
+    fn = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_NORMAL"])
+    fb = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_BOLD"], "bold")
+
+    for pid, info in ids.items():
+        tid_h = info["h"]
+        tid_p = info["p"]
+        ox = info["ox"]
+        oy = info["oy"]
+        off = info["off"]
+        
+        allow_move = info.get("allow_move", False)
+        target_x = info.get("target_x")
+
+        if state != 10: 
+            cv.itemconfigure(tid_h, text=""); cv.itemconfigure(tid_p, text="")
+            continue
+            
+        data = cache.get(pid)
+        if not data:
+            cv.itemconfigure(tid_h, text=""); cv.itemconfigure(tid_p, text="")
+            continue
+
+        # 移動邏輯：若無騎寵，移動到 target_x (現在是 pet_offset 的位置)
+        cur_x = ox 
+        if allow_move and target_x is not None:
+            if not data.get("pet_info"): 
+                cur_x = target_x
+        
+        cv.coords(tid_h, cur_x, oy)
+        cv.coords(tid_p, cur_x + off, oy)
+
+        name = data.get("name", "??")
+        hp = data.get("hp", 0)
+        max_hp = data.get("max_hp", 0)
+        pet_data = data.get("pet_info")
+        
+        # [修改重點 3] 樣式處理
+        is_target = (pid in target_pids)
+        
+        # 名稱處理：選中時加 *
+        display_name_h = f"* {name}" if is_target else name
+        text_h = f"{display_name_h}\n  ({hp}/{max_hp})"
+        
+        text_p = ""
+        if pet_data:
+            p_name = pet_data.get("name", "??")
+            p_hp = pet_data.get("hp", 0)
+            p_max = pet_data.get("max_hp", 0)
+            display_name_p = f"* {p_name}" if is_target else p_name
+            text_p = f"{display_name_p}\n  ({p_hp}/{p_max})"
+        
+        # 字體處理：選中時變粗體
+        font_style = fb if is_target else fn
+        
+        # 顏色處理：死亡優先顯示紅色，取消藍色，其餘黑色
+        color_h = "red" if int(hp) <= 0 else "black"
+        color_p = "black"
+        
+        cv.itemconfigure(tid_h, text=text_h, fill=color_h, font=font_style)
+        cv.itemconfigure(tid_p, text=text_p, fill=color_p, font=font_style)
 
 def update_char_canvas(cv, items, d):
     if not d:
@@ -582,95 +656,3 @@ def update_items_canvas(cv, ids, cache):
             for c, kws in ITEM_COLOR_RULES.items():
                 if any(k in item['name'] for k in kws): color = c; break
             cv.itemconfigure(tid, text=full, fill=color)
-
-def update_battle_canvas(cv, ids, cache, state):
-    # [新增] 取得要變色的索引 (從 memory_worker 傳來的 cmd_idx)
-    cmd_idx = cache.get("cmd_idx", -1)
-    
-    # 計算需要變藍色的 ID 列表
-    # 邏輯：讀取到 N -> N號位 與 N+5號位 變藍
-    target_pids = []
-    if isinstance(cmd_idx, int) and 0 <= cmd_idx <= 4:
-        target_pids = [cmd_idx, cmd_idx + 5]
-
-    for pid, info in ids.items():
-        tid_h = info["h"]
-        tid_p = info["p"]
-        ox = info["ox"]
-        oy = info["oy"]
-        off = info["off"]
-        
-        check_pid = info.get("check_pid")
-        target_x = info.get("target_x")
-
-        # 1. 狀態檢查
-        if state != 10: 
-            cv.itemconfigure(tid_h, text="")
-            cv.itemconfigure(tid_p, text="")
-            continue
-            
-        data = cache.get(pid)
-        # 2. 資料檢查
-        if not data:
-            cv.itemconfigure(tid_h, text="")
-            cv.itemconfigure(tid_p, text="")
-            continue
-
-        # 3. 位置移動邏輯 (左後排遞補)
-        cur_x = ox 
-        if check_pid is not None:
-            front_data = cache.get(check_pid)
-            is_empty = False
-            if not front_data:
-                is_empty = True
-            else:
-                f_name = str(front_data.get("name", "")).strip()
-                if f_name in ["", "0", "???", "None"]:
-                    is_empty = True
-            
-            if is_empty:
-                cur_x = target_x
-        
-        cv.coords(tid_h, cur_x, oy)
-        cv.coords(tid_p, cur_x + off, oy)
-
-        # 4. 文字內容處理
-        name = "???"
-        hp = 0
-        max_hp = 0
-        pet_data = None
-        
-        if isinstance(data, dict):
-            name = data.get("name", "??")
-            hp = data.get("hp", 0)
-            max_hp = data.get("max_hp", 0)
-            pet_data = data.get("pet_info")
-        else:
-            name = str(data)
-        
-        text_h = f"{name}\n  ({hp}/{max_hp})"
-        
-        text_p = ""
-        if pet_data:
-            p_name = pet_data.get("name", "??")
-            p_hp = pet_data.get("hp", 0)
-            p_max = pet_data.get("max_hp", 0)
-            text_p = f"{p_name}\n  ({p_hp}/{p_max})"
-        
-        # --- [關鍵修改] 顏色邏輯 ---
-        # 預設顏色
-        color_h = "black"
-        color_p = "black"
-        
-        # 死亡判定 (優先級低)
-        try:
-            if int(hp) <= 0: color_h = "red"
-        except: pass
-        
-        # 藍色指令判定 (優先級高，覆蓋死亡顏色)
-        if pid in target_pids:
-            color_h = "blue"
-            color_p = "blue" # 騎寵也一起變藍
-            
-        cv.itemconfigure(tid_h, text=text_h, fill=color_h)
-        cv.itemconfigure(tid_p, text=text_p, fill=color_p)
