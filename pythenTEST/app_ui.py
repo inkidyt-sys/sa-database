@@ -1,5 +1,4 @@
 # app_ui.py
-# (v4.21 - Attribute Dynamic Shift & Pet Line Removed)
 
 import tkinter as tk
 from tkinter import ttk
@@ -322,7 +321,7 @@ def create_item_client_panel(parent, account_name):
 
 def create_battle_client_panel(parent, account_name):
     # [修改] 這裡指定戰鬥面板的基礎寬度為 600
-    return _create_dual_col_panel(parent, account_name, _draw_battle_content, base_width=600)
+    return _create_dual_col_panel(parent, account_name, _draw_battle_content, base_width=850)
 
 def _create_dual_col_panel(parent, title, content_func, base_width=850):
     lf = ttk.Labelframe(parent, text=title, padding=2)
@@ -351,18 +350,20 @@ def _create_dual_col_panel(parent, title, content_func, base_width=850):
     return {"frame": lf, "canvas": cv, "ids": ids_container}
 
 def _draw_items_content(cv, rh, width=None):
-    width = 1000
-    if width is None: width = 2000
+    # [修正] 移除原本強制 width = 1000 的設定，改用傳入的實際寬度
+    if width is None: width = 850 
+    
     mid = width // 2
     ids = {}
     fn = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_NORMAL"])
     fb = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_BOLD"], "bold")
     from constants import EQUIP_DISPLAY_ORDER, EQUIP_MAPPING
     
-    # 畫中間的垂直分隔線
+    # 畫中間的垂直分隔線 (使用計算出的正中心 mid)
     cv.create_line(mid, 5, mid, rh*14, fill="#AAAAAA", tags="sep_line")
     
     # --- 左欄 (裝備 + 道具1-2) ---
+    # 起始位置設為 10
     gd = GridDrawer(cv, 10, 10, rh, fn, fb)
     gd.draw_text("【裝備】", 4.0, is_bold=True, color="#0000AA"); gd.new_row()
     
@@ -370,21 +371,18 @@ def _draw_items_content(cv, rh, width=None):
         prefix = EQUIP_MAPPING.get(idx, "??")
         ids[idx] = gd.draw_text(f"{prefix}: --", 5.0); gd.new_row()
     
-    # [修改 1] 垂直置中：直接使用 gd.y (行中心) 畫線，移除原本的 (rh // 2) 偏移
-    # 這樣線條就會位於 "最後一個裝備" 和 "道具1-2標題" 的正中間
+    # 畫橫線：從左邊界(10) 畫到 中線減邊距(mid - 10)
     line_y = gd.y 
-    
-    # [修改 2] 寬度調整：長度改為整體寬度的一半 (即左欄寬度 mid)
-    # 設定左右留 10px 邊距，使其橫跨左欄
     cv.create_line(10, line_y, mid - 10, line_y, fill="#DDDDDD")
     
-    gd.new_row() # 換行準備寫標題
+    gd.new_row() 
     
     gd.draw_text("【道具 1-2】", 4.0, is_bold=True, color="#0000AA"); gd.new_row()
     for idx in range(2):
         ids[idx] = gd.draw_text(f"{idx+1:02d}: --", 5.0); gd.new_row()
         
     # --- 右欄 (道具 3-15) ---
+    # 起始位置設為 中線 + 10 (保持左右對稱的邊距)
     gd = GridDrawer(cv, mid + 10, 10, rh, fn, fb)
     gd.draw_text("【道具 3-15】", 4.0, is_bold=True, color="#0000AA"); gd.new_row()
     for idx in range(2, 15):
@@ -410,8 +408,7 @@ def _draw_battle_content(cv, rh, width=None):
     col3_x = mid_x + 10
     col4_x = mid_x + unit_w + 10
 
-    # [修改重點 1] 移動目標 target_x 改為 "col1_x + pet_offset"
-    # 這樣人物就會移動到 "原本該欄位騎寵的位置" (視覺上的前排)
+    # 移動目標 target_x 改為 "col1_x + pet_offset"
     target_pos_x = col1_x + pet_offset
 
     cols_config = [
@@ -424,6 +421,11 @@ def _draw_battle_content(cv, rh, width=None):
     ids = {}
     fn = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_NORMAL"])
     
+    # [新增] 定義血條尺寸 (可在此微調大小)
+    bar_w = int(50 * LAYOUT_PARAMS["SCALE"])   # 血條總寬度
+    bar_h = int(4 * LAYOUT_PARAMS["SCALE"])    # 血條高度
+    bar_offset_y = int(28 * LAYOUT_PARAMS["SCALE"]) # 血條相對於文字的 Y 軸偏移量
+
     for cfg in cols_config:
         item_ids = cfg["ids"]
         base_x = cfg["x"]
@@ -435,12 +437,30 @@ def _draw_battle_content(cv, rh, width=None):
             offset = (i - 2) * step
             draw_y = center_y + offset
             
+            # --- [新增] 預先建立血條物件 (初始設為隱藏) ---
+            # 人物血條 (背景 + 前景)
+            bar_y = draw_y + bar_offset_y
+            bh_bg = cv.create_rectangle(base_x, bar_y, base_x + bar_w, bar_y + bar_h, fill="#CCCCCC", width=0, state="hidden")
+            bh_fg = cv.create_rectangle(base_x, bar_y, base_x, bar_y + bar_h, fill="green", width=0, state="hidden")
+
+            # 寵物血條 (背景 + 前景)
+            # 寵物的位置永遠是 base_x + pet_offset
+            bp_bg = cv.create_rectangle(base_x + pet_offset, bar_y, base_x + pet_offset + bar_w, bar_y + bar_h, fill="#CCCCCC", width=0, state="hidden")
+            bp_fg = cv.create_rectangle(base_x + pet_offset, bar_y, base_x + pet_offset, bar_y + bar_h, fill="green", width=0, state="hidden")
+            # -------------------------------------------
+            
             tid_h = cv.create_text(base_x, draw_y, text="", font=fn, anchor="nw", fill="black")
             tid_p = cv.create_text(base_x + pet_offset, draw_y, text="", font=fn, anchor="nw", fill="black")
             
             ids[pid] = {
                 "h": tid_h,
                 "p": tid_p,
+                # [新增] 將血條 ID 與尺寸參數存入字典
+                "bar_h_bg": bh_bg, "bar_h_fg": bh_fg,
+                "bar_p_bg": bp_bg, "bar_p_fg": bp_fg,
+                "bar_w": bar_w, "bar_h": bar_h, 
+                "bar_off_y": bar_offset_y,
+                # -----------------------
                 "ox": base_x,       
                 "oy": draw_y,       
                 "off": pet_offset,
@@ -457,13 +477,35 @@ def _draw_battle_content(cv, rh, width=None):
 def update_battle_canvas(cv, ids, cache, state):
     cmd_idx = cache.get("cmd_idx", -1)
     
-    # [修改重點 2] 判斷目標 ID 
+    # 判斷目標 ID 
     target_pids = []
     if isinstance(cmd_idx, int) and 0 <= cmd_idx <= 20:
         target_pids = [cmd_idx, cmd_idx + 5]
 
     fn = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_NORMAL"])
     fb = ("微軟正黑體", LAYOUT_PARAMS["FONT_SIZE_BOLD"], "bold")
+
+    # [內部函式] 用來更新單一條血條
+    def _update_bar(bg_id, fg_id, x, y, cur, max_v, max_w, h):
+        if max_v <= 0: 
+            cv.itemconfigure(bg_id, state="hidden")
+            cv.itemconfigure(fg_id, state="hidden")
+            return
+
+        pct = max(0.0, min(1.0, cur / max_v))
+        cur_w = int(max_w * pct)
+        
+        # 顏色邏輯：>50% 綠色, >20% 黃色, 其餘 紅色
+        if pct > 0.5: c = "#00CC00"  # Green
+        elif pct > 0.2: c = "#FFCC00" # Yellow
+        else: c = "#FF3333"           # Red
+
+        # 更新座標 (x1, y1, x2, y2)
+        cv.coords(bg_id, x, y, x + max_w, y + h)
+        cv.coords(fg_id, x, y, x + cur_w, y + h)
+        
+        cv.itemconfigure(bg_id, state="normal")
+        cv.itemconfigure(fg_id, state="normal", fill=c)
 
     for pid, info in ids.items():
         tid_h = info["h"]
@@ -472,51 +514,73 @@ def update_battle_canvas(cv, ids, cache, state):
         oy = info["oy"]
         off = info["off"]
         
+        # 讀取血條物件與參數
+        bar_h_bg, bar_h_fg = info["bar_h_bg"], info["bar_h_fg"]
+        bar_p_bg, bar_p_fg = info["bar_p_bg"], info["bar_p_fg"]
+        bar_w, bar_h = info["bar_w"], info["bar_h"]
+        bar_off_y = info.get("bar_off_y", 28)
+
         allow_move = info.get("allow_move", False)
         target_x = info.get("target_x")
 
         if state != 10: 
             cv.itemconfigure(tid_h, text=""); cv.itemconfigure(tid_p, text="")
+            # 非戰鬥狀態隱藏血條
+            cv.itemconfigure(bar_h_bg, state="hidden"); cv.itemconfigure(bar_h_fg, state="hidden")
+            cv.itemconfigure(bar_p_bg, state="hidden"); cv.itemconfigure(bar_p_fg, state="hidden")
             continue
             
         data = cache.get(pid)
         if not data:
             cv.itemconfigure(tid_h, text=""); cv.itemconfigure(tid_p, text="")
+            # 無數據時隱藏血條
+            cv.itemconfigure(bar_h_bg, state="hidden"); cv.itemconfigure(bar_h_fg, state="hidden")
+            cv.itemconfigure(bar_p_bg, state="hidden"); cv.itemconfigure(bar_p_fg, state="hidden")
             continue
 
-        # 移動邏輯：若無騎寵，移動到 target_x (現在是 pet_offset 的位置)
+        # 移動邏輯：若無騎寵，移動到 target_x
         cur_x = ox 
         if allow_move and target_x is not None:
             if not data.get("pet_info"): 
                 cur_x = target_x
         
+        # 更新文字位置
         cv.coords(tid_h, cur_x, oy)
         cv.coords(tid_p, cur_x + off, oy)
 
         name = data.get("name", "??")
+        lv = data.get("lv", 0)  # [新增] 讀取等級
         hp = data.get("hp", 0)
         max_hp = data.get("max_hp", 0)
         pet_data = data.get("pet_info")
         
-        # [修改重點 3] 樣式處理
         is_target = (pid in target_pids)
         
-        # 名稱處理：選中時加 *
-        display_name_h = f"* {name}" if is_target else name
-        text_h = f"{display_name_h}\n  ({hp}/{max_hp})"
+        # [修改] 格式改為 [LV]名稱
+        text_h = f"[{lv}]{name}\n  ({hp}/{max_hp})"
         
+        # 更新人物血條
+        _update_bar(bar_h_bg, bar_h_fg, cur_x, oy + bar_off_y, hp, max_hp, bar_w, bar_h)
+
         text_p = ""
         if pet_data:
             p_name = pet_data.get("name", "??")
+            p_lv = pet_data.get("lv", 0) # [新增] 讀取寵物等級
             p_hp = pet_data.get("hp", 0)
             p_max = pet_data.get("max_hp", 0)
-            display_name_p = f"* {p_name}" if is_target else p_name
-            text_p = f"{display_name_p}\n  ({p_hp}/{p_max})"
+            
+            # [修改] 格式改為 [LV]名稱
+            text_p = f"[{p_lv}]{p_name}\n  ({p_hp}/{p_max})"
+            
+            # 更新寵物血條
+            _update_bar(bar_p_bg, bar_p_fg, cur_x + off, oy + bar_off_y, p_hp, p_max, bar_w, bar_h)
+        else:
+            cv.itemconfigure(bar_p_bg, state="hidden"); cv.itemconfigure(bar_p_fg, state="hidden")
         
         # 字體處理：選中時變粗體
         font_style = fb if is_target else fn
         
-        # 顏色處理：死亡優先顯示紅色，取消藍色，其餘黑色
+        # 顏色處理：死亡顯示紅色，其餘黑色
         color_h = "red" if int(hp) <= 0 else "black"
         color_p = "black"
         
@@ -630,7 +694,27 @@ def update_pet_canvas(cv, items, d, idx):
             cv.itemconfigure(tid, text="")
 
 def update_items_canvas(cv, ids, cache):
-    from constants import EQUIP_MAPPING
+    import tkinter.font as tkfont
+    from constants import EQUIP_MAPPING, EQUIP_DISPLAY_ORDER, DEFAULT_ITEM_COLOR, ITEM_COLOR_RULES
+    
+    # 1. 取得畫布寬度與計算限制
+    try: cv_w = int(cv.cget("width"))
+    except: cv_w = 850
+    
+    mid = cv_w // 2
+    # 設定左右欄位的最大文字寬度
+    # mid - 25 代表扣除邊距與保留一點空間，避免緊貼中線
+    max_w_left = mid - 25  
+    max_w_right = (cv_w - mid) - 25 
+
+    # 2. 建立字型測量物件
+    # 必須使用與 create_item_client_panel 相同的字體設定
+    try:
+        # 使用 LAYOUT_PARAMS 中的設定
+        current_font = tkfont.Font(family="微軟正黑體", size=LAYOUT_PARAMS["FONT_SIZE_NORMAL"])
+    except:
+        current_font = tkfont.Font(family="Arial", size=10)
+
     for idx, tid in ids.items():
         item = cache.get(idx)
         if not item:
@@ -640,17 +724,31 @@ def update_items_canvas(cv, ids, cache):
             stack = f" [{item['stack']}]" if item['stack'] > 1 else ""
             dur = f" {item['dur']}" if item['dur'] and "不會損壞" not in item['dur'] else ""
             
-            # [修改] 處理說明文字
+            # 處理說明文字
             desc_str = ""
             if item['desc']:
-                # 1. 先將連續2個以上的空白縮減為1個
                 d_clean = re.sub(r' {2,}', ' ', item['desc'])
-                # 2. 原有的邏輯：移除 +/- 號周圍的空白
                 d_clean = re.sub(r'\s*([+-])\s*', r'\1', d_clean)
                 desc_str = f" {{{d_clean}}}"
             
+            # 組合完整字串
             full = f"{EQUIP_MAPPING.get(idx, f'{idx+1:02d}')}:{stack} {item['name']}{desc_str}{dur}"
             
+            # --- [新增] 寬度檢測與自動截斷 ---
+            # 判斷目前是左欄還是右欄 (裝備與道具0-1為左，其餘為右)
+            # 裝備 ID 為負數，道具 ID 為 0~14，所以小於 2 的都是左欄
+            is_left = (idx < 2)
+            limit = max_w_left if is_left else max_w_right
+            
+            # 如果測量出來的寬度超過限制
+            if current_font.measure(full) > limit:
+                # 逐步刪減字尾直到符合寬度，並加上 "..."
+                # (為了效能，這裡用簡單的遞迴刪減，也可以根據比例一次刪多點)
+                while current_font.measure(full + "...") > limit and len(full) > 0:
+                    full = full[:-1]
+                full += "..."
+            # --------------------------------
+
             color = DEFAULT_ITEM_COLOR
             for c, kws in ITEM_COLOR_RULES.items():
                 if any(k in item['name'] for k in kws): color = c; break

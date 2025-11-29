@@ -1,5 +1,4 @@
 # main.py
-# (v4.15 - Adjusted for new app_ui)
 
 import tkinter as tk
 from tkinter import ttk
@@ -46,7 +45,7 @@ class DSAHelperApp(tk.Tk):
         self.command_queue = queue.Queue()
         self.worker_thread = None
 
-        self.title("DSA Helper v4.15 (Dynamic Layout)")
+        self.title("DSA 新端輔助程式 v5.0 by 陳財佑")
         try: self.iconbitmap("icon.ico")
         except: pass
         
@@ -230,9 +229,18 @@ class DSAHelperApp(tk.Tk):
                 self.client_item_ui[i] = app_ui.create_item_client_panel(parent, slot["account_name"]); needs_redraw = True
             
             ui = self.client_item_ui[i]
-            if ui["frame"].cget("text") != slot["account_name"]: ui["frame"].config(text=slot["account_name"])
             
-            # 使用 app_ui 的更新函式
+            # --- [修改] 更新標題資訊 (加入石幣) ---
+            title_text = slot["account_name"]
+            char = slot.get("char_data_cache")
+            if char:
+                # 格式: 帳號 名稱 LV:xxx HP:xxx/xxx MP:xxx/xxx 石幣:xxxxxx
+                title_text = f"{slot['account_name']}   {char.get('name','')}   LV:{char.get('lv','--')}   HP:{char.get('hp','--/--')}   MP:{char.get('mp','--/--')}   石幣:{char.get('gold', 0)}"
+            
+            if ui["frame"].cget("text") != title_text: 
+                ui["frame"].config(text=title_text)
+            # ------------------------------------
+            
             app_ui.update_items_canvas(ui["canvas"], ui["ids"], slot.get("item_data_cache", {}))
 
         if needs_redraw: parent.event_generate("<Configure>"); self.adjust_window_height()
@@ -252,10 +260,33 @@ class DSAHelperApp(tk.Tk):
                 self.client_battle_ui[i] = app_ui.create_battle_client_panel(parent, slot["account_name"]); needs_redraw = True
             
             ui = self.client_battle_ui[i]
-            if ui["frame"].cget("text") != slot["account_name"]: ui["frame"].config(text=slot["account_name"])
+            
+            # --- [修改] 更新標題資訊 (含狀態與回合數) ---
+            title_text = slot["account_name"]
+            char = slot.get("char_data_cache")
+            
+            # 1. 基礎資訊
+            if char:
+                title_text = f"{slot['account_name']}   {char.get('name','')}   LV:{char.get('lv','--')}   HP:{char.get('hp','--/--')}   MP:{char.get('mp','--/--')}"
+
+            # 2. 狀態與回合數判斷
+            game_state = slot.get("game_state", 0)
+            battle_data = slot.get("battle_data_cache", {})
+            
+            # 假設 10 為戰鬥狀態 (依據 Constants 設定)
+            if game_state == 10:
+                # 讀取回合數並 +1
+                r_val = battle_data.get("round", 0)
+                title_text += f"   狀態:戰鬥中 第{r_val + 1}回"
+            else:
+                title_text += "   狀態:平時"
+
+            if ui["frame"].cget("text") != title_text: 
+                ui["frame"].config(text=title_text)
+            # ------------------------------------------
             
             # 使用 app_ui 的更新函式
-            app_ui.update_battle_canvas(ui["canvas"], ui["ids"], slot.get("battle_data_cache", {}), slot.get("game_state", 0))
+            app_ui.update_battle_canvas(ui["canvas"], ui["ids"], battle_data, game_state)
 
         if needs_redraw: parent.event_generate("<Configure>"); self.adjust_window_height()
 
@@ -291,7 +322,7 @@ class DSAHelperApp(tk.Tk):
             if self.notebook.select():
                 tab_text = self.notebook.tab(self.notebook.select(), "text")
                 target_frame = None
-                extra_padding = 80
+                extra_padding = 100
 
                 if tab_text == "人寵資料": target_frame = getattr(self, "tab_frame_char", None) and self.tab_frame_char.inner_frame
                 elif tab_text == "道具列表": target_frame = getattr(self, "tab_frame_items", None) and self.tab_frame_items.inner_frame
@@ -302,7 +333,7 @@ class DSAHelperApp(tk.Tk):
 
                 if target_frame:
                     final_h = target_frame.winfo_reqheight() + extra_padding
-                    self.geometry(f"{self.current_base_width}x{max(250, min(final_h, self.winfo_screenheight()-100))}")
+                    self.geometry(f"{self.current_base_width}x{max(300, min(final_h, self.winfo_screenheight()-100))}")
         except: pass
 
     def on_client_right_click_single(self, e, i):

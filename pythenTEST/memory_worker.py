@@ -124,6 +124,15 @@ class MemoryMonitorThread(threading.Thread):
             f = pm.read_int(base + CHAR_ELEM_FIRE_OFFSET)
             wi = pm.read_int(base + CHAR_ELEM_WIND_OFFSET)
             d["element_raw"] = (e, w, f, wi)
+
+            # --- [新增] 讀取石幣 ---
+            # 必須先在 constants.py 定義 CHAR_GOLD_OFFSET
+            try:
+                d["gold"] = pm.read_int(base + CHAR_GOLD_OFFSET)
+            except:
+                d["gold"] = 0
+            # ----------------------
+
             return d
         except: return None
 
@@ -210,15 +219,25 @@ class MemoryMonitorThread(threading.Thread):
     def _read_battle(self, pm, base):
         res = {}
         try:
-            from constants import BATTLE_STRING_OFFSET
+            # [修改] 引入 BATTLE_ROUND_OFFSET
+            from constants import BATTLE_STRING_OFFSET, BATTLE_ROUND_OFFSET
             from utils import read_big5_string
             
-            # 讀取指令索引 (用於判斷選中目標)
+            # 讀取指令索引 (用於判斷角色目標)
             try:
                 cmd_idx = pm.read_uchar(base + 0x1E9110)
                 res["cmd_idx"] = cmd_idx
             except:
                 res["cmd_idx"] = -1
+
+            # --- [新增] 讀取回合數 ---
+            try:
+                # 讀取整數 (int)
+                round_val = pm.read_int(base + BATTLE_ROUND_OFFSET)
+                res["round"] = round_val
+            except:
+                res["round"] = 0
+            # ------------------------
 
             raw = read_big5_string(pm, base + BATTLE_STRING_OFFSET, 4096)
             if not raw: return res
@@ -244,9 +263,8 @@ class MemoryMonitorThread(threading.Thread):
                         "pet_info": None
                     }
                     
-                    # --- [修改] 騎寵判斷邏輯 ---
+                    # 騎寵判斷邏輯
                     pet_name = tokens[i+9]
-                    # 改為判斷去除空白後長度是否大於 0
                     if pet_name and len(pet_name.strip()) > 0:
                         plv = int(tokens[i+10], 16)
                         php = int(tokens[i+11], 16)
@@ -257,7 +275,6 @@ class MemoryMonitorThread(threading.Thread):
                             "hp": php,
                             "max_hp": pmax
                         }
-                    # --------------------------
                     
                     res[pid] = data
                 except: continue
