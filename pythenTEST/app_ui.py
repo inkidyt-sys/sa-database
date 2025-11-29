@@ -457,9 +457,8 @@ def _draw_battle_content(cv, rh, width=None):
 def update_battle_canvas(cv, ids, cache, state):
     cmd_idx = cache.get("cmd_idx", -1)
     
-    # [修改重點 2] 判斷目標 ID (只對右邊人物 0~4 生效)
+    # [修改重點 2] 判斷目標 ID 
     target_pids = []
-    # 限制 0 <= cmd_idx <= 4 代表只針對右方玩家隊伍
     if isinstance(cmd_idx, int) and 0 <= cmd_idx <= 20:
         target_pids = [cmd_idx, cmd_idx + 5]
 
