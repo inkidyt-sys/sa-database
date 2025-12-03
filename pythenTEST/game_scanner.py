@@ -7,6 +7,7 @@ import psutil
 import pymem
 import pymem.pattern
 from constants import *
+from logger import logger
 
 def find_game_windows():
     """尋找所有符合 PROCESS_NAME 的遊戲視窗"""
@@ -30,8 +31,11 @@ def scan_slot(slot):
         pm = pymem.Pymem(slot["pid"])
         slot["pm_handle"] = pm
         mod = pymem.process.module_from_name(pm.process_handle, PROCESS_NAME)
-        if not mod: raise Exception("Module not found")
+        if not mod: 
+            logger.error(f"[PID {slot['pid']}] 模組 {PROCESS_NAME} 未找到")
+            raise Exception("Module not found")
         slot["module_base"] = mod.lpBaseOfDll
+        logger.info(f"[PID {slot['pid']}] 綁定成功，模組基址: 0x{mod.lpBaseOfDll:X}")
         
         # 1. 掃描行走
         _scan_pattern(slot, mod, AOB_PATTERN_WALK, WALK_PATCH_OFFSET, "walk", 1)
@@ -44,8 +48,10 @@ def scan_slot(slot):
                       len(NOCLIP_PATCHED_BYTES), AOB_PATTERN_NOCLIP_PATCHED)
         
         slot["status"] = "已綁定"
+        logger.info(f"[PID {slot['pid']}] 掃描完成")
         return True
-    except:
+    except Exception as e:
+        logger.error(f"[PID {slot.get('pid', '?')}] 掃描失敗: {e}")
         slot["status"] = "掃描失敗"
         if slot.get("pm_handle"): 
             try: slot["pm_handle"].close_process()
@@ -69,7 +75,11 @@ def _scan_pattern(slot, mod, pattern, offset, key_prefix, size, alt_pattern=None
             if not patched:
                 data = pm.read_bytes(final, size)
                 slot[f"{key_prefix}_original_byte" if size==1 else f"{key_prefix}_original_bytes"] = data[0] if size==1 else data
-    except: pass
+            logger.debug(f"[{key_prefix}] 找到特徵碼 @ 0x{final:X} (patched={patched})")
+        else:
+            logger.warning(f"[{key_prefix}] 特徵碼未找到")
+    except Exception as e:
+        logger.warning(f"[{key_prefix}] 掃描失敗: {e}")
 
 def _scan_speed(slot, mod):
     pm = slot["pm_handle"]
@@ -88,4 +98,8 @@ def _scan_speed(slot, mod):
             if not patched:
                 slot["speed_original_bytes_1"] = pm.read_bytes(slot["speed_address_1"], 6)
                 slot["speed_original_bytes_2"] = pm.read_bytes(slot["speed_address_2"], 6)
-    except: pass
+            logger.debug(f"[speed] 找到特徵碼 @ 0x{a1:X}, 0x{a2:X}")
+        else:
+            logger.warning("[speed] 加速特徵碼未找到")
+    except Exception as e:
+        logger.warning(f"[speed] 掃描失敗: {e}")

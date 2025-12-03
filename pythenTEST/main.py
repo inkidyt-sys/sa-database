@@ -9,6 +9,7 @@ from constants import *
 from utils import is_admin
 import app_ui 
 from memory_worker import MemoryMonitorThread
+from logger import logger
 
 import game_scanner
 import game_features
@@ -22,6 +23,7 @@ except:
 class DSAHelperApp(tk.Tk):
     def __init__(self):
         super().__init__()
+        logger.info("DSA Helper v5.0 starting...")
         self.detect_dpi()
         self.user_scale = 1.0
         
@@ -54,7 +56,9 @@ class DSAHelperApp(tk.Tk):
 
         if not is_admin():
             self.show_admin_error()
+            logger.error("Not running as administrator")
         else:
+            logger.info("Admin privileges confirmed")
             self.protocol("WM_DELETE_WINDOW", self.on_closing)
             self.start_worker_thread()
             self.check_data_queue()
@@ -365,11 +369,18 @@ class DSAHelperApp(tk.Tk):
     def show_admin_error(self): tk.Label(self, text="錯誤：請以管理員身份執行", fg="red", font=("Arial", 20)).pack(pady=50)
 
     def on_closing(self):
-        if self.worker_thread: self.command_queue.put({"action": "stop"}); self.worker_thread.join(1.0)
-        for s in self.client_data_slots:
+        logger.info("Application closing...")
+        if self.worker_thread: 
+            self.command_queue.put({"action": "stop"})
+            self.worker_thread.join(1.0)
+        for i, s in enumerate(self.client_data_slots):
             if s["status"] == "已綁定":
-                try: s["pm_handle"].close_process()
-                except: pass
+                try: 
+                    s["pm_handle"].close_process()
+                    logger.info(f"Slot {i} process handle closed")
+                except Exception as e:
+                    logger.warning(f"Slot {i} close error: {e}")
+        logger.info("Application closed")
         self.destroy()
 
 if __name__ == "__main__":

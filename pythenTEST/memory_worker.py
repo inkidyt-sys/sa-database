@@ -9,6 +9,7 @@ import psutil
 
 from constants import *
 from utils import read_big5_string, format_elements
+from logger import logger
 
 class MemoryMonitorThread(threading.Thread):
     def __init__(self, data_queue, command_queue, client_data_slots_ref):
@@ -22,15 +23,19 @@ class MemoryMonitorThread(threading.Thread):
 
     def run(self):
         print("[Worker] 記憶體監控執行緒已啟動。")
+        logger.info("Memory Worker Thread Started")
         while not self.stopped.is_set():
             start_time = time.time()
             
             # 1. 處理命令
             try:
                 cmd = self.command_queue.get_nowait()
-                if cmd["action"] == "stop": self.stopped.set(); continue
+                if cmd["action"] == "stop": 
+                    logger.info("Worker stop signal received")
+                    self.stopped.set(); continue
                 if cmd["action"] == "set_rate": 
                     self.refresh_interval_sec = cmd["value"] if cmd["value"] is not None else float('inf')
+                    logger.debug(f"Refresh rate changed to {self.refresh_interval_sec}s")
             except queue.Empty: pass
 
             if self.refresh_interval_sec == float('inf'):
@@ -56,7 +61,7 @@ class MemoryMonitorThread(threading.Thread):
             if active_login and sleep_time > 1.0: sleep_time = 1.0
             
             self.stopped.wait(sleep_time)
-        print("[Worker] 停止。")
+        logger.info("Worker thread stopped")
 
     def _monitor_slot(self, idx):
         slot = self.client_data_slots[idx]
@@ -84,22 +89,39 @@ class MemoryMonitorThread(threading.Thread):
                 try:
                     s = pm.read_string(base + ACCOUNT_STRING_OFFSET, 100)
                     txt = s.split("www.")[0] if s else "登入完成"
-                except: txt = "登入完成"
+                except Exception as e:
+                    logger.debug(f"[Slot {idx}] 無法讀取帳號字串: {e}")
+                    txt = "登入完成"
                 
-                # 讀取詳細資料
-                res["char_data_cache"] = self._read_char(pm, base)
-                res["pet_data_cache"] = self._read_pets(pm, base, slot["pet_data_cache"])
-                res["item_data_cache"] = self._read_items(pm, base)
+                # 讀取詳細資料（含錯誤恢復）
+                try:
+                    res["char_data_cache"] = self._read_char(pm, base)
+                except Exception as e:
+                    logger.warning(f"[Slot {idx}] 人物資料讀取失敗: {e}")
+                    
+                try:
+                    res["pet_data_cache"] = self._read_pets(pm, base, slot["pet_data_cache"])
+                except Exception as e:
+                    logger.warning(f"[Slot {idx}] 寵物資料讀取失敗: {e}")
+                    
+                try:
+                    res["item_data_cache"] = self._read_items(pm, base)
+                except Exception as e:
+                    logger.warning(f"[Slot {idx}] 道具資料讀取失敗: {e}")
                 
                 # 戰鬥數據 (狀態 10 或測試需求)
                 if state == 10:
-                    res["battle_data_cache"] = self._read_battle(pm, base)
+                    try:
+                        res["battle_data_cache"] = self._read_battle(pm, base)
+                    except Exception as e:
+                        logger.warning(f"[Slot {idx}] 戰鬥資料讀取失敗: {e}")
             else:
                 txt = f"狀態: {state}"
             
             res["account_name"] = txt
             return res
-        except Exception:
+        except Exception as e:
+            logger.error(f"[Slot {idx}] 監控失敗: {e}")
             res["status"] = "已失效"
             return res
 

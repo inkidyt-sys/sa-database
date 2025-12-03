@@ -1,0 +1,18 @@
+[23:43:33] [INFO] DSA Helper v5.0 starting...
+[23:43:33] [INFO] Admin privileges confirmed
+[23:43:33] [INFO] Memory Worker Thread Started
+[23:43:33] [DEBUG] Refresh rate changed to 3.0s
+[23:43:49] [INFO] [PID 12944] 綁定成功，模組基址: 0x2C0000
+[23:43:49] [DEBUG] [walk] 找到特徵碼 @ 0x374241 (patched=False)
+[23:43:49] [DEBUG] [speed] 找到特徵碼 @ 0x33600B, 0x33601D
+[23:43:49] [DEBUG] [noclip] 找到特徵碼 @ 0x375884 (patched=False)
+[23:43:49] [INFO] [PID 12944] 掃描完成
+[23:44:14] [INFO] Speed feature: enabled
+[23:44:16] [INFO] Feature walk_is_patched: write_uchar @ 0x374241 = 0x74
+[23:44:19] [INFO] Feature walk_is_patched: write_uchar @ 0x374241 = 0x72
+[23:44:20] [INFO] Speed feature: disabled
+[23:44:21] [INFO] Feature walk_is_patched: write_uchar @ 0x374241 = 0x74
+[23:44:23] [INFO] Speed feature: enabled
+[23:45:14] [INFO] Speed feature: disabled
+[23:45:15] [INFO] Feature walk_is_patched: write_uchar @ 0x374241 = 0x72
+[23:45:22] [ERROR] [Slot 0] 監控失敗: Could not read memory at: 275704548, length: 4 - GetLastError: 299
