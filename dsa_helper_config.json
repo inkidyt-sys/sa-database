@@ -1,0 +1,21 @@
+{
+    "ui": {
+        "default_refresh_rate": "3s",
+        "default_zoom": "100%",
+        "auto_height_enabled": true,
+        "remember_window_size": true,
+        "last_window_width": 1050,
+        "last_window_height": 280
+    },
+    "advanced": {
+        "enable_logging": true,
+        "log_level": "INFO",
+        "enable_memory_cache": true,
+        "memory_cache_ttl_sec": 2.0
+    },
+    "memory": {
+        "aob_scan_timeout": 10.0,
+        "max_retry_count": 3,
+        "retry_delay_sec": 0.5
+    }
+}

@@ -1,0 +1,48 @@
+[00:00:59] [INFO] DSA Helper v5.0 starting...
+[00:00:59] [INFO] Admin privileges confirmed
+[00:00:59] [INFO] Memory Worker Thread Started
+[00:00:59] [DEBUG] Refresh rate changed to 3.0s
+[00:00:59] [INFO] Refresh rate changed to 3s
+[00:01:16] [INFO] [PID 14748] 綁定成功，模組基址: 0x2C0000
+[00:01:16] [DEBUG] AOB cache saved: 1 entries
+[00:01:16] [INFO] [walk] 掃描並快取 @ 0x374241
+[00:01:16] [DEBUG] AOB cache saved: 3 entries
+[00:01:16] [INFO] [speed] 掃描並快取 @ 0x33600B, 0x33601D
+[00:01:16] [DEBUG] AOB cache saved: 4 entries
+[00:01:16] [INFO] [noclip] 掃描並快取 @ 0x375884
+[00:01:16] [INFO] [PID 14748] 掃描完成
+[00:01:59] [INFO] Speed feature: enabled
+[00:02:00] [INFO] Speed feature: disabled
+[00:04:12] [INFO] Speed feature: enabled
+[00:04:13] [INFO] Feature walk_is_patched: write_uchar @ 0x374241 = 0x74
+[00:04:18] [ERROR] [Slot 0] 監控失敗: Could not read memory at: 275704548, length: 4 - GetLastError: 299
+[00:04:26] [INFO] [PID 4152] 綁定成功，模組基址: 0x2C0000
+[00:04:26] [DEBUG] [walk] 使用快取 @ 0x374241
+[00:04:26] [DEBUG] [speed] 使用快取 @ 0x336011, 0x336023
+[00:04:26] [DEBUG] [noclip] 使用快取 @ 0x375884
+[00:04:26] [INFO] [PID 4152] 掃描完成
+[00:04:26] [INFO] [PID 14004] 綁定成功，模組基址: 0x2C0000
+[00:04:26] [DEBUG] [walk] 使用快取 @ 0x374241
+[00:04:26] [DEBUG] [speed] 使用快取 @ 0x336011, 0x336023
+[00:04:26] [DEBUG] [noclip] 使用快取 @ 0x375884
+[00:04:26] [INFO] [PID 14004] 掃描完成
+[00:04:26] [INFO] [PID 5212] 綁定成功，模組基址: 0x2C0000
+[00:04:26] [DEBUG] [walk] 使用快取 @ 0x374241
+[00:04:26] [DEBUG] [speed] 使用快取 @ 0x336011, 0x336023
+[00:04:26] [DEBUG] [noclip] 使用快取 @ 0x375884
+[00:04:26] [INFO] [PID 5212] 掃描完成
+[00:04:26] [INFO] [PID 2424] 綁定成功，模組基址: 0x2C0000
+[00:04:26] [DEBUG] [walk] 使用快取 @ 0x374241
+[00:04:26] [DEBUG] [speed] 使用快取 @ 0x336011, 0x336023
+[00:04:26] [DEBUG] [noclip] 使用快取 @ 0x375884
+[00:04:26] [INFO] [PID 2424] 掃描完成
+[00:04:26] [INFO] [PID 12948] 綁定成功，模組基址: 0x2C0000
+[00:04:26] [DEBUG] [walk] 使用快取 @ 0x374241
+[00:04:26] [DEBUG] [speed] 使用快取 @ 0x336011, 0x336023
+[00:04:26] [DEBUG] [noclip] 使用快取 @ 0x375884
+[00:04:26] [INFO] [PID 12948] 掃描完成
+[00:07:29] [ERROR] [Slot 4] 監控失敗: Could not read memory at: 275704548, length: 4 - GetLastError: 299
+[00:07:30] [ERROR] [Slot 2] 監控失敗: Could not read memory at: 275704548, length: 4 - GetLastError: 299
+[00:07:32] [ERROR] [Slot 3] 監控失敗: Could not read memory at: 275704548, length: 4 - GetLastError: 299
+[00:07:34] [ERROR] [Slot 1] 監控失敗: Could not read memory at: 275704548, length: 4 - GetLastError: 299
+[00:07:37] [ERROR] [Slot 0] 監控失敗: Could not read memory at: 275704548, length: 4 - GetLastError: 299

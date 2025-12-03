@@ -16,3 +16,7 @@
 [23:45:14] [INFO] Speed feature: disabled
 [23:45:15] [INFO] Feature walk_is_patched: write_uchar @ 0x374241 = 0x72
 [23:45:22] [ERROR] [Slot 0] 監控失敗: Could not read memory at: 275704548, length: 4 - GetLastError: 299
+[23:50:33] [INFO] Application closing...
+[23:50:34] [INFO] Worker stop signal received
+[23:50:34] [INFO] Worker thread stopped
+[23:50:34] [INFO] Application closed

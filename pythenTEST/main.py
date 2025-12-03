@@ -4,12 +4,15 @@ import tkinter as tk
 from tkinter import ttk
 import ctypes
 import queue
+import time
 
 from constants import *
 from utils import is_admin
 import app_ui 
 from memory_worker import MemoryMonitorThread
 from logger import logger
+from config import config
+from performance_monitor import monitor
 
 import game_scanner
 import game_features
@@ -28,9 +31,9 @@ class DSAHelperApp(tk.Tk):
         self.user_scale = 1.0
         
         # UI 變數
-        self.refresh_rate_var = tk.StringVar(value='3s')
-        self.zoom_var = tk.StringVar(value='100%') 
-        self.auto_height_var = tk.IntVar(value=1)
+        self.refresh_rate_var = tk.StringVar(value=config.get("ui.default_refresh_rate", "3s"))
+        self.zoom_var = tk.StringVar(value=config.get("ui.default_zoom", "100%"))
+        self.auto_height_var = tk.IntVar(value=1 if config.get("ui.auto_height_enabled", True) else 0)
         self.client_selection_vars = [tk.IntVar() for _ in range(MAX_CLIENTS)]
         
         # 資料結構
@@ -42,6 +45,10 @@ class DSAHelperApp(tk.Tk):
         self.client_item_ui = {}
         self.client_battle_ui = {}
         self.tabs = {}
+        
+        # 警告訊息堆棧
+        self.warning_messages = []
+        self.warning_label = None
         
         self.data_queue = queue.Queue()
         self.command_queue = queue.Queue()
@@ -104,8 +111,11 @@ class DSAHelperApp(tk.Tk):
         except: val = 1.0
         if val != self.user_scale:
             self.user_scale = val
+            config.set("ui.default_zoom", self.zoom_var.get())
+            config.save()
             self.calc_layout_params()
             self.rebuild_ui()
+            logger.info(f"UI zoom changed to {self.zoom_var.get()}")
 
     def create_empty_slot_data(self):
         return {
@@ -336,7 +346,11 @@ class DSAHelperApp(tk.Tk):
 
     def on_refresh_rate_change(self, e=None):
         m = {'0.5s':0.5, '1s':1.0, '3s':3.0, '5s':5.0, '10s':10.0, '60s':60.0, '不刷新':None}
-        self.command_queue.put({"action": "set_rate", "value": m.get(self.refresh_rate_var.get(), 3.0)})
+        rate = m.get(self.refresh_rate_var.get(), 3.0)
+        self.command_queue.put({"action": "set_rate", "value": rate})
+        config.set("ui.default_refresh_rate", self.refresh_rate_var.get())
+        config.save()
+        logger.info(f"Refresh rate changed to {self.refresh_rate_var.get()}")
 
     def adjust_window_height(self):
         if not self.auto_height_var.get(): return
@@ -352,12 +366,30 @@ class DSAHelperApp(tk.Tk):
                 elif tab_text == "戰鬥狀態": target_frame = getattr(self, "tab_frame_battle", None) and self.tab_frame_battle.inner_frame
                 elif tab_text == "遊戲設置":
                     target_frame = getattr(self, "tab_frame_settings", None) and self.tab_frame_settings.inner_frame
-                    extra_padding += 50 
+                    extra_padding += 50
+                elif tab_text == "效能監控":
+                    # 效能監控頁籤自動高度
+                    extra_padding = 150
 
                 if target_frame:
                     final_h = target_frame.winfo_reqheight() + extra_padding
                     self.geometry(f"{self.current_base_width}x{max(300, min(final_h, self.winfo_screenheight()-100))}")
         except: pass
+    
+    def update_performance_tab(self):
+        """更新效能監控頁籤"""
+        if not hasattr(self, "perf_info_label"):
+            return
+        
+        try:
+            monitor.update_metrics()
+            stats_text = monitor.format_stats()
+            self.perf_info_label.config(text=stats_text)
+            
+            # 每 500ms 更新一次
+            self.after(500, self.update_performance_tab)
+        except Exception as e:
+            logger.warning(f"Performance display error: {e}")
 
     def on_client_right_click_single(self, e, i):
         h = self.client_data_slots[i]["hwnd"]
@@ -366,7 +398,35 @@ class DSAHelperApp(tk.Tk):
         h = self.client_data_slots[i]["hwnd"]
         if h: ctypes.windll.user32.ShowWindow(h, SW_RESTORE); ctypes.windll.user32.SetForegroundWindow(h)
     
-    def show_admin_error(self): tk.Label(self, text="錯誤：請以管理員身份執行", fg="red", font=("Arial", 20)).pack(pady=50)
+    def show_admin_error(self): 
+        tk.Label(self, text="錯誤：請以管理員身份執行", fg="red", font=("Arial", 20)).pack(pady=50)
+    
+    def add_warning(self, message, level="WARNING"):
+        """新增警告訊息到堆棧"""
+        self.warning_messages.append({"msg": message, "level": level, "time": time.time()})
+        logger.warning(f"UI Warning: {message}")
+        self._update_warning_display()
+    
+    def _update_warning_display(self):
+        """更新警告訊息顯示"""
+        if not self.warning_label:
+            return
+        
+        # 清除超過 5 秒的訊息
+        current_time = time.time()
+        self.warning_messages = [m for m in self.warning_messages if current_time - m["time"] < 5.0]
+        
+        if not self.warning_messages:
+            self.warning_label.config(text="")
+            return
+        
+        # 顯示最新的訊息
+        latest = self.warning_messages[-1]
+        color = "red" if latest["level"] == "ERROR" else "orange" if latest["level"] == "WARNING" else "blue"
+        self.warning_label.config(text=f"[{latest['level']}] {latest['msg']}", fg=color)
+        
+        # 安排下次更新
+        self.after(100, self._update_warning_display)
 
     def on_closing(self):
         logger.info("Application closing...")

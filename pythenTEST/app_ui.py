@@ -101,6 +101,12 @@ class GridDrawer:
 # --- 主要 UI 建構函式 ---
 
 def create_main_widgets(app):
+    # [新增] 警告面板 (頂部)
+    warning_frame = ttk.Frame(app, relief="sunken", height=25)
+    warning_frame.pack(fill="x", padx=5, pady=2)
+    app.warning_label = tk.Label(warning_frame, text="", fg="black", font=("Arial", 9), anchor="w")
+    app.warning_label.pack(fill="both", expand=True, padx=5)
+    
     main_frame = ttk.Frame(app, padding=LAYOUT_PARAMS["PADDING"])
     main_frame.pack(fill="both", expand=True)
 
@@ -150,7 +156,29 @@ def create_main_widgets(app):
     app.tab_frame_battle = ScrollableFrame(f_bat, orient="vertical")
     app.tab_frame_battle.pack(fill="both", expand=True)
     
+    # [新增] 效能監控頁籤
+    f_perf = ttk.Frame(app.notebook, padding=10); app.notebook.add(f_perf, text="效能監控")
+    ttk.Label(f_perf, text="系統效能統計", font=("Arial", 12, "bold")).pack(anchor="w", pady=5)
+    ttk.Separator(f_perf, orient="horizontal").pack(fill="x", pady=5)
+    
+    app.perf_info_label = tk.Label(f_perf, text="初始化中...", font=("Courier", 10), anchor="w", justify="left")
+    app.perf_info_label.pack(fill="x", padx=10, pady=10)
+    
+    ttk.Label(f_perf, text="說明：", font=("Arial", 10, "bold")).pack(anchor="w", pady=(20, 5))
+    perf_desc = (
+        "• 運行時間: 程式啟動至今的時間\n"
+        "• 讀取: 成功的記憶體讀取次數\n"
+        "• 失敗: 讀取失敗的次數\n"
+        "• 平均延遲: 每次讀取的平均耗時 (毫秒)\n"
+        "• CPU: 進程的 CPU 使用率\n"
+        "• 記憶體: 當前 / 峰值記憶體使用量 (MB)"
+    )
+    ttk.Label(f_perf, text=perf_desc, font=("Arial", 9), justify="left").pack(anchor="w", padx=10)
+    
     f_chat = ttk.Frame(app.notebook); app.notebook.add(f_chat, text="聊天窗口", state="disabled")
+    
+    # 啟動效能監控更新
+    app.update_performance_tab()
 
 def _create_settings_tab_content(parent, app):
     top = ttk.Frame(parent)

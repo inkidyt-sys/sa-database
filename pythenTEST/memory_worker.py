@@ -6,10 +6,43 @@ import time
 import queue
 import pymem
 import psutil
+from functools import wraps
 
 from constants import *
 from utils import read_big5_string, format_elements
 from logger import logger
+from config import config
+
+# 超時裝飾器
+def with_timeout(timeout_sec):
+    """為函式添加超時控制"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            result = [None]
+            exception = [None]
+            
+            def target():
+                try:
+                    result[0] = func(*args, **kwargs)
+                except Exception as e:
+                    exception[0] = e
+            
+            thread = threading.Thread(target=target)
+            thread.daemon = True
+            thread.start()
+            thread.join(timeout_sec)
+            
+            if thread.is_alive():
+                logger.warning(f"{func.__name__} timeout after {timeout_sec}s")
+                return None
+            
+            if exception[0]:
+                raise exception[0]
+            return result[0]
+        
+        return wrapper
+    return decorator
 
 class MemoryMonitorThread(threading.Thread):
     def __init__(self, data_queue, command_queue, client_data_slots_ref):
@@ -128,6 +161,8 @@ class MemoryMonitorThread(threading.Thread):
     def _read_char(self, pm, base):
         try:
             d = {}
+            timeout = config.get("memory.aob_scan_timeout", 5.0)
+            
             d["name"] = read_big5_string(pm, base + CHAR_NAME_OFFSET, 16)
             d["nickname"] = read_big5_string(pm, base + CHAR_NICKNAME_OFFSET, 12)
             d["rebirth"] = REBIRTH_MAP.get(pm.read_int(base + CHAR_REBIRTH_OFFSET), "未知")
@@ -147,16 +182,15 @@ class MemoryMonitorThread(threading.Thread):
             wi = pm.read_int(base + CHAR_ELEM_WIND_OFFSET)
             d["element_raw"] = (e, w, f, wi)
 
-            # --- [新增] 讀取石幣 ---
-            # 必須先在 constants.py 定義 CHAR_GOLD_OFFSET
             try:
                 d["gold"] = pm.read_int(base + CHAR_GOLD_OFFSET)
             except:
                 d["gold"] = 0
-            # ----------------------
 
             return d
-        except: return None
+        except Exception as e:
+            logger.warning(f"Error reading char data: {e}")
+            return None
 
     def _read_pets(self, pm, base, old_cache):
         new_cache = [None] * 5

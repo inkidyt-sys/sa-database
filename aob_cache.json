@@ -1,0 +1,48 @@
+{
+  "2C0000_walk": {
+    "address": 3621441,
+    "is_patched": false,
+    "timestamp": 1764777676.4626484,
+    "original_bytes": [
+      114
+    ]
+  },
+  "2C0000_speed_1": {
+    "address": 3366929,
+    "is_patched": false,
+    "original_bytes": [
+      3,
+      21,
+      252,
+      206,
+      72,
+      0
+    ],
+    "timestamp": 1764777676.4663405
+  },
+  "2C0000_speed_2": {
+    "address": 3366947,
+    "is_patched": false,
+    "original_bytes": [
+      3,
+      5,
+      248,
+      206,
+      72,
+      0
+    ],
+    "timestamp": 1764777676.466342
+  },
+  "2C0000_noclip": {
+    "address": 3627140,
+    "is_patched": false,
+    "timestamp": 1764777676.4689796,
+    "original_bytes": [
+      184,
+      1,
+      0,
+      0,
+      0
+    ]
+  }
+}
