@@ -129,6 +129,25 @@ class DSAHelperApp(tk.Tk):
             account_changed = False
             for i, new_data in enumerate(full_data):
                 slot = self.client_data_slots[i]
+                
+                # --- [新增] 自動偵測視窗關閉/失效邏輯 ---
+                # 如果當前是「已綁定」，但後台回傳「已失效」，代表遊戲關了
+                if slot["status"] == "已綁定" and new_data["status"] == "已失效":
+                    print(f"窗口 {i+1} 連線中斷，重置狀態。")
+                    
+                    # 1. 嘗試關閉記憶體控制代碼 (避免殘留)
+                    try: 
+                        if slot["pm_handle"]: slot["pm_handle"].close_process()
+                    except: pass
+                    
+                    # 2. 重置為空插槽數據 (變回 "未綁定")
+                    self.client_data_slots[i] = self.create_empty_slot_data()
+                    
+                    # 3. 標記需要刷新左側列表
+                    account_changed = True
+                    continue # 跳過本次後續更新，直接處理下一個
+                # -------------------------------------
+
                 if slot["status"] == "已綁定":
                     if slot["account_name"] != new_data["account_name"]:
                         slot["account_name"] = new_data["account_name"]; account_changed = True
